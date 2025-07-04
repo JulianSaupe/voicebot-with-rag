@@ -1,5 +1,4 @@
 # Voicebot with RAG
-___
 
 ## Overview
 
@@ -24,12 +23,17 @@ The project uses Python 3.9.6 and requires a Python virtual environment for prop
 
 ### Installation
 
-1. Create a virtual environment:
+1. Clone the repository:
+   ```bash
+   git clone git@git.rz.uni-augsburg.de:saupejul/voicebot-with-rag.git
+   ```
+
+2. Create a virtual environment:
    ```bash
    python -m venv .venv
    ```
 
-2. Install required packages:
+3. Install required packages:
    ```bash
    pip install -r requirements.txt
    ```
