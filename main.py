@@ -44,7 +44,7 @@ class ContinuousAudioPlayer:
             )
             self.stream.start()
             print(f"🔊 Audio stream started: {self.samplerate}Hz, {self.chunk_size} samples per block")
-            
+
         except Exception as e:
             print(f"Failed to start audio stream: {e}")
             raise
@@ -76,7 +76,7 @@ class ContinuousAudioPlayer:
     def _audio_callback(self, outdata, frames, time, status):
         """Audio callback for continuous playback."""
         self.callback_count += 1
-        
+
         if status:
             print(f"⚠️  Audio callback status: {status}")
 
@@ -86,12 +86,12 @@ class ContinuousAudioPlayer:
                 # We have enough data
                 outdata[:, 0] = self.audio_buffer[:frames]
                 self.audio_buffer = self.audio_buffer[frames:]
-                
+
                 # Mark first audio as played
                 if not self.first_audio_played:
                     self.first_audio_played = True
                     print("🎵 First audio chunk is now playing!")
-                    
+
             else:
                 # Not enough data, fill with zeros (silence)
                 if buffer_size > 0:
@@ -116,14 +116,16 @@ class ContinuousAudioPlayer:
                 with self.buffer_lock:
                     old_buffer_size = len(self.audio_buffer)
                     self.audio_buffer = np.concatenate([self.audio_buffer, audio_float])
-                    
+
                     # Show when we get the first audio
                     if old_buffer_size == 0 and len(audio_float) > 0:
-                        print(f"🎵 First audio chunk received! Buffer: {len(self.audio_buffer)} samples ({len(self.audio_buffer) / self.samplerate:.1f}s)")
+                        print(
+                            f"🎵 First audio chunk received! Buffer: {len(self.audio_buffer)} samples ({len(self.audio_buffer) / self.samplerate:.1f}s)")
 
                 # Show buffer status occasionally
                 if len(self.audio_buffer) % 50000 < len(audio_float):
-                    print(f"🔊 Buffer: {len(self.audio_buffer)} samples ({len(self.audio_buffer) / self.samplerate:.1f}s)")
+                    print(
+                        f"🔊 Buffer: {len(self.audio_buffer)} samples ({len(self.audio_buffer) / self.samplerate:.1f}s)")
 
             except Exception as e:
                 print(f"Audio feed error: {e}")
@@ -133,8 +135,9 @@ class ContinuousAudioPlayer:
 async def main():
     load_dotenv()
 
-    prompt = "Erkläre was AI ist und gebe einige Beispiele wann uns KI im Alltag begegnet"
+    prompt = "Was sind einfache und leckere Sommergerichte?"
     task_description = ("Du bist ein KI Agent, welcher kurze Antworten auf Fragen von den Nutzer geben kann."
+                        "Rege den Nutzer am Ende deiner Antwort an weitere Fragen zu stellen und mache dazu einige Vorschläge."
                         "Gebe nur ganze Sätze wieder, welche mit Hilfe von TTS an den Benutzer ausgegeben werden."
                         "Um die Fragen besser beantworten zu können, wird unter 'Kontext' weiterer Kontext bereitgestellt."
                         "Die Frage des Nutzers ist unter 'Frage' gegeben.")
@@ -164,15 +167,15 @@ async def main():
         chunk_count = 0
         total_samples = 0
         start_time = time.time()
-        
+
         try:
             async for audio_chunk in audio_stream:
                 chunk_count += 1
                 total_samples += len(audio_chunk)
-                
+
                 # Add audio immediately to the player
                 await audio_player.add_audio(audio_chunk)
-                
+
                 # Show timing info for first few chunks
                 if chunk_count <= 5:
                     elapsed = time.time() - start_time
@@ -180,7 +183,7 @@ async def main():
                 elif chunk_count % 20 == 0:
                     elapsed = time.time() - start_time
                     print(f"📥 Received {chunk_count} chunks after {elapsed:.1f}s...")
-                    
+
         except Exception as e:
             print(f"Error in audio stream processing: {e}")
             import traceback
@@ -188,7 +191,7 @@ async def main():
 
         generation_time = time.time() - start_time
         print(f"\n🎵 Generation complete in {generation_time:.1f}s!")
-        print(f"🎵 Total: {chunk_count} chunks, {total_samples} samples ({total_samples/24000:.1f}s of audio)")
+        print(f"🎵 Total: {chunk_count} chunks, {total_samples} samples ({total_samples / 24000:.1f}s of audio)")
         print("=" * 50)
 
         # Signal that we're done adding audio
@@ -197,7 +200,7 @@ async def main():
         # Wait for the feed_audio task to complete
         print("⏳ Waiting for audio feed to complete...")
         await player_task
-        
+
         # Now wait for the audio buffer to drain completely
         print("⏳ Waiting for remaining audio to play...")
         while True:
@@ -209,7 +212,7 @@ async def main():
 
         # Give a little extra time for the audio system
         await asyncio.sleep(1.0)
-        
+
         total_time = time.time() - start_time
         print(f"🔊 Complete! Total time: {total_time:.1f}s")
 

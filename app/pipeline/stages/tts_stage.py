@@ -23,12 +23,35 @@ class TTSStage(Stage):
 
     async def _convert_text_stream_to_audio(self, text_stream: Iterable[str]) -> AsyncGenerator[np.ndarray, None]:
         """Convert streaming text to streaming audio."""
-        sentence_buffer = ""
+        # Create an async queue to bridge sync text stream and async audio generation
+        text_queue = asyncio.Queue()
         
+        # Background task to consume the synchronous text stream
+        async def text_producer():
+            try:
+                for text_chunk in text_stream:
+                    await text_queue.put(text_chunk)
+                    # Small delay to allow other tasks to run
+                    await asyncio.sleep(0.001)
+                await text_queue.put(None)  # Signal end
+                print("📝 Text stream consumption complete")
+            except Exception as e:
+                print(f"Error in text producer: {e}")
+                await text_queue.put(None)
+        
+        # Start the text producer task
+        producer_task = asyncio.create_task(text_producer())
+        
+        sentence_buffer = ""
         print("🔊 Starting TTS conversion...")
         
         try:
-            for text_chunk in text_stream:
+            while True:
+                # Get text chunks from the queue
+                text_chunk = await text_queue.get()
+                if text_chunk is None:
+                    break
+                
                 try:
                     if text_chunk:
                         print(f"📝 Processing text: '{text_chunk}'")
@@ -37,7 +60,7 @@ class TTSStage(Stage):
                         # More aggressive streaming - synthesize smaller chunks
                         should_synthesize = (
                             self._is_sentence_complete(sentence_buffer) or 
-                            len(sentence_buffer) > 50 or  # Reduced from 100
+                            len(sentence_buffer) > 30 or
                             self._has_natural_break(sentence_buffer)
                         )
                         
@@ -68,6 +91,14 @@ class TTSStage(Stage):
             print(f"Fatal error in TTS conversion: {e}")
             import traceback
             traceback.print_exc()
+        finally:
+            # Ensure the producer task is cleaned up
+            if not producer_task.done():
+                producer_task.cancel()
+                try:
+                    await producer_task
+                except asyncio.CancelledError:
+                    pass
         
         print("🔊 TTS conversion complete")
 
