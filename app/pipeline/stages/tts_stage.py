@@ -43,7 +43,11 @@ class TTSStage(Stage):
         producer_task = asyncio.create_task(text_producer())
         
         sentence_buffer = ""
+        full_answer = ""  # Store the complete answer
+        
         print("🔊 Starting TTS conversion...")
+        print("🤖 AI Answer:")
+        print("-" * 50)
         
         try:
             while True:
@@ -54,7 +58,10 @@ class TTSStage(Stage):
                 
                 try:
                     if text_chunk:
-                        print(f"📝 Processing text: '{text_chunk}'")
+                        # Print the text chunk to console immediately
+                        print(text_chunk, end='', flush=True)
+                        full_answer += text_chunk
+                        
                         sentence_buffer += text_chunk
                         
                         # More aggressive streaming - synthesize smaller chunks
@@ -65,30 +72,28 @@ class TTSStage(Stage):
                         )
                         
                         if should_synthesize and sentence_buffer.strip():
-                            print(f"🎵 Synthesizing: '{sentence_buffer.strip()}'")
                             try:
                                 async for audio_chunk in self._synthesize_text(sentence_buffer.strip()):
                                     yield audio_chunk
                                 sentence_buffer = ""
                             except Exception as e:
-                                print(f"Error synthesizing text chunk: {e}")
+                                print(f"\n❌ Error synthesizing text chunk: {e}")
                                 sentence_buffer = ""
                                     
                 except Exception as e:
-                    print(f"Error processing text chunk '{text_chunk}': {e}")
+                    print(f"\n❌ Error processing text chunk '{text_chunk}': {e}")
                     continue
             
             # Synthesize any remaining text
             if sentence_buffer.strip():
-                print(f"🎵 Synthesizing final: '{sentence_buffer.strip()}'")
                 try:
                     async for audio_chunk in self._synthesize_text(sentence_buffer.strip()):
                         yield audio_chunk
                 except Exception as e:
-                    print(f"Error synthesizing final text: {e}")
+                    print(f"\n❌ Error synthesizing final text: {e}")
                     
         except Exception as e:
-            print(f"Fatal error in TTS conversion: {e}")
+            print(f"\n❌ Fatal error in TTS conversion: {e}")
             import traceback
             traceback.print_exc()
         finally:
@@ -100,6 +105,10 @@ class TTSStage(Stage):
                 except asyncio.CancelledError:
                     pass
         
+        print("\n" + "-" * 50)
+        print(f"📝 Complete answer ({len(full_answer)} characters):")
+        print(full_answer)
+        print("-" * 50)
         print("🔊 TTS conversion complete")
 
     def _is_sentence_complete(self, text):
@@ -133,6 +142,6 @@ class TTSStage(Stage):
                     yield audio_data
                     
         except Exception as e:
-            print(f"Synthesis error for text '{text[:50]}...': {e}")
+            print(f"\n❌ Synthesis error for text '{text[:50]}...': {e}")
             import traceback
             traceback.print_exc()

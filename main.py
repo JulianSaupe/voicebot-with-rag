@@ -90,7 +90,7 @@ class ContinuousAudioPlayer:
                 # Mark first audio as played
                 if not self.first_audio_played:
                     self.first_audio_played = True
-                    print("🎵 First audio chunk is now playing!")
+                    # print("🎵 First audio chunk is now playing!")
 
             else:
                 # Not enough data, fill with zeros (silence)
@@ -118,14 +118,14 @@ class ContinuousAudioPlayer:
                     self.audio_buffer = np.concatenate([self.audio_buffer, audio_float])
 
                     # Show when we get the first audio
-                    if old_buffer_size == 0 and len(audio_float) > 0:
-                        print(
-                            f"🎵 First audio chunk received! Buffer: {len(self.audio_buffer)} samples ({len(self.audio_buffer) / self.samplerate:.1f}s)")
+                    # if old_buffer_size == 0 and len(audio_float) > 0:
+                    #     print(
+                    #         f"🎵 First audio chunk received! Buffer: {len(self.audio_buffer)} samples ({len(self.audio_buffer) / self.samplerate:.1f}s)")
 
                 # Show buffer status occasionally
-                if len(self.audio_buffer) % 50000 < len(audio_float):
-                    print(
-                        f"🔊 Buffer: {len(self.audio_buffer)} samples ({len(self.audio_buffer) / self.samplerate:.1f}s)")
+                # if len(self.audio_buffer) % 50000 < len(audio_float):
+                #     print(
+                #         f"🔊 Buffer: {len(self.audio_buffer)} samples ({len(self.audio_buffer) / self.samplerate:.1f}s)")
 
             except Exception as e:
                 print(f"Audio feed error: {e}")
@@ -179,10 +179,10 @@ async def main():
                 # Show timing info for first few chunks
                 if chunk_count <= 5:
                     elapsed = time.time() - start_time
-                    print(f"📥 Chunk {chunk_count} after {elapsed:.1f}s: {len(audio_chunk)} samples")
+                    # print(f"📥 Chunk {chunk_count} after {elapsed:.1f}s: {len(audio_chunk)} samples")
                 elif chunk_count % 20 == 0:
                     elapsed = time.time() - start_time
-                    print(f"📥 Received {chunk_count} chunks after {elapsed:.1f}s...")
+                    # print(f"📥 Received {chunk_count} chunks after {elapsed:.1f}s...")
 
         except Exception as e:
             print(f"Error in audio stream processing: {e}")
@@ -207,7 +207,7 @@ async def main():
             remaining = audio_player.get_buffer_duration()
             if remaining <= 0.0:
                 break
-            print(f"⏳ Buffer remaining: {remaining:.1f}s")
+            # print(f"⏳ Buffer remaining: {remaining:.1f}s")
             await asyncio.sleep(1.0)
 
         # Give a little extra time for the audio system
