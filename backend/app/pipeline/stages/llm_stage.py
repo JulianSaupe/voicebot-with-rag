@@ -1,7 +1,7 @@
-from app.llm.llm_provider import LLMProvider
-from app.llm.prompt_builder import PromptBuilder
-from app.pipeline.pipeline_calls import LLMStageCall, TTSStageCall
-from app.pipeline.stages.stage import Stage
+from backend.app.llm.llm_provider import LLMProvider
+from backend.app.llm.prompt_builder import PromptBuilder
+from backend.app.pipeline.pipeline_calls import LLMStageCall, TTSStageCall
+from backend.app.pipeline.stages.stage import Stage
 
 
 class LLMStage(Stage):

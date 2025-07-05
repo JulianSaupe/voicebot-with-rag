@@ -4,8 +4,8 @@ from typing import AsyncGenerator, Iterable
 import numpy as np
 from google.cloud import texttospeech
 
-from app.pipeline.pipeline_calls import TTSStageCall
-from app.pipeline.stages.stage import Stage
+from backend.app.pipeline.pipeline_calls import TTSStageCall
+from backend.app.pipeline.stages.stage import Stage
 
 
 class TTSStage(Stage):

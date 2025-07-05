@@ -3,8 +3,8 @@ import os
 import psycopg2
 from dotenv import load_dotenv
 
-from app.rag.embedding_calculator import EmbeddingCalculator
-from app.rag.vector_database import VectorDatabase
+from backend.app.rag.embedding_calculator import EmbeddingCalculator
+from backend.app.rag.vector_database import VectorDatabase
 
 
 class PostgresVectorDB(VectorDatabase):

@@ -1,7 +1,7 @@
 from typing import List
 
-from app.pipeline.pipeline_calls import StageCall
-from app.pipeline.stages.stage import Stage
+from backend.app.pipeline.pipeline_calls import StageCall
+from backend.app.pipeline.stages.stage import Stage
 
 
 class Pipeline:

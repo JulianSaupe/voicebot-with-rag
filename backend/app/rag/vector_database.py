@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from app.rag.embedding_calculator import EmbeddingCalculator
+from backend.app.rag.embedding_calculator import EmbeddingCalculator
 
 
 class VectorDatabase(ABC):

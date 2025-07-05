@@ -1,7 +1,7 @@
-from app.pipeline.pipeline_calls import RAGStageCall, LLMStageCall
-from app.pipeline.stages.stage import Stage
-from app.rag.embedding_calculator import EmbeddingCalculator
-from app.rag.vector_database import VectorDatabase
+from backend.app.pipeline.pipeline_calls import RAGStageCall, LLMStageCall
+from backend.app.pipeline.stages.stage import Stage
+from backend.app.rag.embedding_calculator import EmbeddingCalculator
+from backend.app.rag.vector_database import VectorDatabase
 
 
 class RAGStage(Stage):

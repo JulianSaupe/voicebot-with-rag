@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
 from typing import Any
 
-from app.pipeline.pipeline_calls import StageCall
+from backend.app.pipeline.pipeline_calls import StageCall
 
 
 class Stage(ABC):

@@ -5,14 +5,14 @@ import sounddevice as sd
 import threading
 import time
 
-from app.llm.gemini import Gemini
-from app.llm.prompt_builder import PromptBuilder
-from app.pipeline.async_pipeline import AsyncPipeline
-from app.pipeline.pipeline_calls import RAGStageCall, LLMStageCall, TTSStageCall
-from app.pipeline.stages.llm_stage import LLMStage
-from app.pipeline.stages.rag_stage import RAGStage
-from app.pipeline.stages.tts_stage import TTSStage
-from app.rag.postgres_db import PostgresVectorDB
+from backend.app.llm.gemini import Gemini
+from backend.app.llm.prompt_builder import PromptBuilder
+from backend.app.pipeline.async_pipeline import AsyncPipeline
+from backend.app.pipeline.pipeline_calls import RAGStageCall
+from backend.app.pipeline.stages.llm_stage import LLMStage
+from backend.app.pipeline.stages.rag_stage import RAGStage
+from backend.app.pipeline.stages.tts_stage import TTSStage
+from backend.app.rag.postgres_db import PostgresVectorDB
 
 
 class ContinuousAudioPlayer:

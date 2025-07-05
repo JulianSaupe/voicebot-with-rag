@@ -3,8 +3,8 @@ from typing import Iterable
 from dotenv import load_dotenv
 from google import genai
 
-from app.llm.llm_provider import LLMProvider
-from app.rag.embedding_calculator import EmbeddingCalculator
+from backend.app.llm.llm_provider import LLMProvider
+from backend.app.rag.embedding_calculator import EmbeddingCalculator
 
 
 class Gemini(LLMProvider, EmbeddingCalculator):
