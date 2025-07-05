@@ -135,8 +135,8 @@ class ContinuousAudioPlayer:
 async def main():
     load_dotenv()
 
-    prompt = "Was sind einfache und leckere Sommergerichte?"
-    task_description = ("Du bist ein KI Agent, welcher kurze Antworten auf Fragen von den Nutzer geben kann."
+    prompt = ""
+    task_description = ("Du bist ein KI Agent, welcher Antworten auf Fragen von den Nutzer geben kann."
                         "Rege den Nutzer am Ende deiner Antwort an weitere Fragen zu stellen und mache dazu einige Vorschläge."
                         "Gebe nur ganze Sätze wieder, welche mit Hilfe von TTS an den Benutzer ausgegeben werden."
                         "Um die Fragen besser beantworten zu können, wird unter 'Kontext' weiterer Kontext bereitgestellt."
