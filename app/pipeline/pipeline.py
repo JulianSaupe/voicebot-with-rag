@@ -1,6 +1,6 @@
 from typing import List
 
-from app.pipeline.stage import Stage
+from app.pipeline.stages.stage import Stage
 
 
 class Pipeline:

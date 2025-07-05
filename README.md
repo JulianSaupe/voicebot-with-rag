@@ -37,3 +37,23 @@ The project uses Python 3.9.6 and requires a Python virtual environment for prop
    ```bash
    pip install -r requirements.txt
    ```
+   
+4. Setup Postgres:
+
+   Create a `.env` file in the root directory:
+   ```
+   # Postgres
+   POSTGRES_DB={database}
+   POSTGRES_USER={user}
+   POSTGRES_PASSWORD={password}
+   POSTGRES_HOST={host}
+   POSTGRES_PORT=5050
+   ```
+   
+5. Setup Gemini:
+
+   In the `.env` file add your Gemini api key:
+   ```
+   # Gemini
+   GEMINI_API_KEY={API KEY}
+   ```

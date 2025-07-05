@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: ankane/pgvector
+    container_name: pgvector-db
+    restart: always
+    env_file:
+      - ".env"
+    ports:
+      - "5050:5432"
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+
+volumes:
+  pgvector_data:
+  riva_data:

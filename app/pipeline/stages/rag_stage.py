@@ -1,5 +1,5 @@
 from app.pipeline.pipeline_calls import RAGStageCall, LLMStageCall
-from app.pipeline.stage import Stage
+from app.pipeline.stages.stage import Stage
 from app.rag.embedding_calculator import EmbeddingCalculator
 from app.rag.vector_database import VectorDatabase
 
