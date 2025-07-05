@@ -1,7 +1,8 @@
 import os
-import pathlib
+
 import psycopg2
 from dotenv import load_dotenv
+
 from app.rag.embedding_calculator import EmbeddingCalculator
 from app.rag.vector_database import VectorDatabase
 

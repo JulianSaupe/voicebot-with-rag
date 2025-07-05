@@ -10,4 +10,4 @@ class RAGStage(Stage):
         self.embedding_calculator = embedding_calculator
 
     def __call__(self, data: RAGStageCall) -> LLMStageCall:
-        pass
+        return LLMStageCall(user_prompt=data.prompt, context=[])

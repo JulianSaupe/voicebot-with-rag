@@ -1,8 +1,6 @@
-from typing import Any
-
 from app.llm.llm_provider import LLMProvider
 from app.llm.prompt_builder import PromptBuilder
-from app.pipeline.pipeline_calls import LLMStageCall
+from app.pipeline.pipeline_calls import LLMStageCall, TTSStageCall
 from app.pipeline.stages.stage import Stage
 
 
@@ -11,7 +9,8 @@ class LLMStage(Stage):
         self.llm = llm
         self.prompt_builder = prompt_builder
 
-    def __call__(self, data: LLMStageCall) -> Any:
+    def __call__(self, data: LLMStageCall) -> TTSStageCall:
         prompt = self.prompt_builder.build_with_context(data.context, data.user_prompt)
-
-        return self.llm.generate_stream(prompt=prompt)
+        text_stream = self.llm.generate_text_stream(prompt=prompt)
+        
+        return TTSStageCall(text_stream=text_stream)
