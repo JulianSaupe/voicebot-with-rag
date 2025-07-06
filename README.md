@@ -145,3 +145,45 @@ The project includes a FastAPI server that provides an audio streaming endpoint 
    ```
 
    Note: For streaming PCM audio, you may need a more advanced implementation that processes chunks as they arrive.
+
+### Frontend Setup
+
+The project includes a Svelte-based frontend for interacting with the voicebot API.
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Configure the API URL:
+
+   The frontend uses environment variables to configure the API URL. By default, it connects to `http://localhost:8000`, but you can customize this for different environments.
+
+   Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit the `.env` file to set your API URL:
+   ```
+   VITE_API_BASE_URL=http://your-api-url
+   ```
+
+   For different environments, you can create:
+   - `.env.development` - Used during development
+   - `.env.production` - Used for production builds
+
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+5. Build for production:
+   ```bash
+   npm run build
+   ```

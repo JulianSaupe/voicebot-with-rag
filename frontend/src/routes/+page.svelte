@@ -1,185 +1,148 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import SpeechBubble from '$lib/SpeechBubble.svelte';
-	import SubtitleDisplay from '$lib/SubtitleDisplay.svelte';
-	import ToggleSwitch from '$lib/ToggleSwitch.svelte';
+    import {onMount} from 'svelte';
+    import SpeechBubble from '$lib/SpeechBubble.svelte';
+    import SubtitleDisplay from '$lib/SubtitleDisplay.svelte';
+    import ToggleSwitch from '$lib/ToggleSwitch.svelte';
+    import * as AudioService from '$lib/audioService';
 
-	let isVoicebotEnabled = false;
-	let isListening = false;
-	let currentSubtitle = '';
-	let audioLevel = 0;
+    // UI state
+    let isVoicebotEnabled = false;
+    let currentSubtitle = '';
+    let userPrompt = '';
 
-	// Mock audio level simulation for demo purposes
-	let audioInterval: number;
-	
-	const startAudioSimulation = () => {
-		audioInterval = setInterval(() => {
-			if (isVoicebotEnabled && isListening) {
-				audioLevel = Math.random() * 100;
-			} else {
-				audioLevel = 0;
-			}
-		}, 100);
-	};
+    // Audio state
+    let audioState = AudioService.createAudioState();
+    $: isListening = audioState.isListening;
+    $: audioLevel = audioState.audioLevel;
+    $: isProcessing = audioState.isProcessing;
 
-	const stopAudioSimulation = () => {
-		if (audioInterval) {
-			clearInterval(audioInterval);
-		}
-		audioLevel = 0;
-	};
+    // Update audio state helper function
+    const updateAudioState = (updates: Partial<AudioService.AudioState>, source: string) => {
+        // Create a new object to ensure reactivity
+        const newState = {...audioState, ...updates};
+        audioState = newState;
 
-	const handleToggleVoicebot = (event: CustomEvent) => {
-		// The component already updates isVoicebotEnabled via binding
-		// We just need to react to the new state
-		const enabled = event.detail.enabled;
-		
-		if (enabled) {
-			currentSubtitle = 'Voicebot activated. Say something...';
-			isListening = true;
-			startAudioSimulation();
-		} else {
-			currentSubtitle = 'Voicebot disabled';
-			isListening = false;
-			stopAudioSimulation();
-			setTimeout(() => {
-				currentSubtitle = '';
-			}, 2000);
-		}
-	};
+        // Force UI update by logging the state
+        console.log("[", source, "] Audio state updated:", audioState.isProcessing);
+    };
 
-	onMount(() => {
-		return () => {
-			stopAudioSimulation();
-		};
-	});
+    // Update subtitle helper function
+    const updateSubtitle = (text: string) => {
+        currentSubtitle = text;
+    };
 
-	// Mock conversation for demonstration
-	const mockResponses = [
-		"Hello! How can I help you today?",
-		"That's an interesting question. Let me think about it.",
-		"I understand what you're asking. Here's my response.",
-		"Is there anything else you'd like to know?",
-		"Thank you for chatting with me!"
-	];
+    onMount(() => {
+        // Initialize AudioContext
+        audioState.audioContext = AudioService.initAudioContext();
+        updateAudioState(audioState, "onMount");
 
-	let responseIndex = 0;
+        return () => {
+            AudioService.stopAudio(audioState);
+        };
+    });
 
-	const simulateResponse = () => {
-		if (isVoicebotEnabled) {
-			currentSubtitle = mockResponses[responseIndex % mockResponses.length];
-			responseIndex++;
-			isListening = true;
-		}
-	};
+    const handleToggleVoicebot = (event: CustomEvent) => {
+        // The component already updates isVoicebotEnabled via binding
+        // We just need to react to the new state
+        const enabled = event.detail.enabled;
 
-	// Simulate periodic responses when voicebot is active
-	let responseInterval: number;
-	
-	$: if (isVoicebotEnabled) {
-		responseInterval = setInterval(simulateResponse, 5000);
-	} else if (responseInterval) {
-		clearInterval(responseInterval);
-	}
+        if (enabled) {
+            updateSubtitle('Voicebot activated. Enter your question...');
+            updateAudioState({isListening: false}, "handleToggleVoicebot");
+        } else {
+            updateSubtitle('Voicebot disabled');
+            updateAudioState({isListening: false}, "handleToggleVoicebot");
+            AudioService.stopAudio(audioState);
+            setTimeout(() => {
+                updateSubtitle('');
+            }, 2000);
+        }
+    };
+
+    const submitPrompt = async () => {
+        if (!userPrompt.trim() || !isVoicebotEnabled || isProcessing) return;
+
+        console.log("Before API call - isProcessing:", audioState.isProcessing);
+
+        // Set isProcessing directly to ensure UI updates
+        audioState.isProcessing = true;
+        updateAudioState(audioState, "submitPrompt before API call");
+
+        console.log("After setting isProcessing to true:", audioState.isProcessing);
+
+        try {
+            await AudioService.submitPrompt(
+                userPrompt,
+                audioState,
+                updateAudioState,
+                updateSubtitle
+            );
+        } finally {
+            console.log("API call completed - Before setting isProcessing to false:", audioState.isProcessing);
+
+            // Set isProcessing directly to ensure UI updates
+            audioState.isProcessing = false;
+            updateAudioState(audioState, "submitPrompt finally");
+
+            console.log("After setting isProcessing to false:", audioState.isProcessing);
+        }
+    };
+
+    // Handle Enter key in the input field
+    const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            submitPrompt();
+        }
+    };
 </script>
 
 <svelte:head>
-	<title>AI Voicebot</title>
-	<meta name="description" content="Modern AI Voicebot with Speech Recognition" />
+    <title>AI Voicebot</title>
+    <meta name="description" content="Modern AI Voicebot with Speech Recognition"/>
 </svelte:head>
 
 <main class="main-container">
-	<div class="header">
-		<h1 class="title">AI Voicebot</h1>
-		<p class="subtitle">Futuristic Voice Assistant</p>
-	</div>
+    <div class="header">
+        <h1 class="title">AI Voicebot</h1>
+        <p class="subtitle">Futuristic Voice Assistant</p>
+    </div>
 
-	<div class="chatbot-container">
-		<SpeechBubble {audioLevel} {isListening} {isVoicebotEnabled} />
-		
-		<div class="controls">
-			<ToggleSwitch 
-				bind:enabled={isVoicebotEnabled} 
-				on:toggle={handleToggleVoicebot}
-				label="Enable Voicebot"
-			/>
-		</div>
-	</div>
+    <div class="chatbot-container">
+        <SpeechBubble {audioLevel} {isListening} {isVoicebotEnabled}/>
 
-	<SubtitleDisplay {currentSubtitle} />
+        <div class="controls">
+            <ToggleSwitch
+                    bind:enabled={isVoicebotEnabled}
+                    on:toggle={handleToggleVoicebot}
+                    label="Enable Voicebot"
+            />
+
+            {#if isVoicebotEnabled}
+                <div class="prompt-container">
+                    <input
+                            type="text"
+                            bind:value={userPrompt}
+                            placeholder="Ask a question..."
+                            class="prompt-input"
+                            on:keydown={handleKeyDown}
+                            disabled={audioState.isProcessing}
+                    />
+                    <button
+                            class="submit-button"
+                            on:click={submitPrompt}
+                            disabled={!userPrompt.trim() || audioState.isProcessing}
+                    >
+                        {audioState.isProcessing ? 'Processing...' : 'Ask'}
+                    </button>
+                </div>
+            {/if}
+        </div>
+    </div>
+
+    <SubtitleDisplay {currentSubtitle}/>
 </main>
 
 <style>
-	:global(body) {
-		margin: 0;
-		padding: 0;
-		background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2a2a2a 100%);
-		color: #ffffff;
-		font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-		min-height: 100vh;
-		overflow-x: hidden;
-	}
-
-	.main-container {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		min-height: 100vh;
-		padding: 2rem;
-		background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.05) 0%, rgba(79, 70, 229, 0.03) 40%, transparent 70%);
-	}
-
-	.header {
-		text-align: center;
-		margin-bottom: 3rem;
-		z-index: 2;
-	}
-
-	.title {
-		font-size: 3.5rem;
-		font-weight: 700;
-		margin: 0;
-		background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 50%, #c7d2fe 100%);
-		-webkit-background-clip: text;
-		background-clip: text;
-		-webkit-text-fill-color: transparent;
-		letter-spacing: -0.02em;
-	}
-
-	.subtitle {
-		font-size: 1.2rem;
-		color: #888;
-		margin: 0.5rem 0 0 0;
-		font-weight: 300;
-	}
-
-	.chatbot-container {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		position: relative;
-		z-index: 1;
-	}
-
-	.controls {
-		margin-top: 3rem;
-		z-index: 3;
-	}
-
-	@media (max-width: 768px) {
-		.title {
-			font-size: 2.5rem;
-		}
-		
-		.subtitle {
-			font-size: 1rem;
-		}
-		
-		.main-container {
-			padding: 1rem;
-		}
-	}
-
-
+    @import '$lib/style/voicebot.css';
 </style>

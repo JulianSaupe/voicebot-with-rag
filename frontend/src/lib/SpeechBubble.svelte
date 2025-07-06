@@ -235,7 +235,7 @@
 	}
 
 	.status-indicator {
-		margin-top: 2rem;
+		margin-top: 6rem;
 		text-align: center;
 	}
 

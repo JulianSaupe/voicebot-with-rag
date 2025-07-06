@@ -35,6 +35,7 @@ llm_stage = LLMStage(llm=llm, prompt_builder=PromptBuilder(
     "Rege den Nutzer am Ende deiner Antwort an weitere Fragen zu stellen und mache dazu einige Vorschläge."
     "Gebe nur ganze Sätze wieder, welche mit Hilfe von TTS an den Benutzer ausgegeben werden."
     "Um die Fragen besser beantworten zu können, wird unter 'Kontext' weiterer Kontext bereitgestellt."
+    "Beachte den Kontext nur, wenn dieser auch dazu beiträgt bessere Antworten zu geben."
     "Die Frage des Nutzers ist unter 'Frage' gegeben."
 ))
 tts_stage = TTSStage(voice_name="de-DE-Chirp3-HD-Charon", language_code="de-DE")
@@ -54,6 +55,10 @@ async def audio_generator(prompt: str):
         total_samples = 0
         start_time = time.time()
 
+        # Buffer for combining very small chunks
+        buffer = bytearray()
+        min_chunk_size = 2048  # Minimum bytes to send (1024 samples)
+
         async for audio_chunk in audio_stream:
             chunk_count += 1
             total_samples += len(audio_chunk)
@@ -61,11 +66,34 @@ async def audio_generator(prompt: str):
             # Convert numpy array to bytes
             audio_bytes = audio_chunk.tobytes()
 
-            # Yield the audio chunk as bytes
-            yield audio_bytes
+            # If the chunk is very small, buffer it until we have enough data
+            # This helps reduce overhead and improve streaming efficiency
+            if len(audio_bytes) < min_chunk_size and len(buffer) < min_chunk_size * 2:
+                buffer.extend(audio_bytes)
 
-            # Small delay to prevent overwhelming the client
-            await asyncio.sleep(0.01)
+                # If we still don't have enough data, wait for more chunks
+                if len(buffer) < min_chunk_size:
+                    continue
+
+                # We have enough data, send the buffered chunk
+                yield bytes(buffer)
+                buffer = bytearray()
+            else:
+                # If we have data in the buffer, send it first
+                if buffer:
+                    buffer.extend(audio_bytes)
+                    yield bytes(buffer)
+                    buffer = bytearray()
+                else:
+                    # Send the chunk directly
+                    yield audio_bytes
+
+            # No delay between chunks - let the frontend handle buffering
+            # This ensures a continuous stream of audio data
+
+        # Send any remaining buffered data
+        if buffer:
+            yield bytes(buffer)
 
         print(f"\n🎵 Generation complete in {time.time() - start_time:.1f}s!")
         print(f"🎵 Total: {chunk_count} chunks, {total_samples} samples ({total_samples / 24000:.1f}s of audio)")
@@ -81,7 +109,7 @@ async def audio_generator(prompt: str):
 async def get_audio_stream(prompt: str = Query(..., description="The prompt to generate audio for")):
     """
     Stream audio response for a given prompt.
-    
+
     The audio is streamed as raw PCM int16 data that can be played by the frontend.
     """
     return StreamingResponse(
