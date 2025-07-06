@@ -58,7 +58,7 @@ The project uses Python 3.9.6 and requires a Python virtual environment for prop
    ```bash
    pip install -r requirements.txt
    ```
-   
+
 4. Setup PostgreSQL:
    Create a `.env` file in the root directory:
    ```
@@ -69,13 +69,13 @@ The project uses Python 3.9.6 and requires a Python virtual environment for prop
    POSTGRES_HOST={host}
    POSTGRES_PORT=5432
    ```
-   
+
 5. Setup Google Services:
    In the `.env` file add your API keys and credentials:
    ```
    # Google Gemini
    GEMINI_API_KEY={your_gemini_api_key}
-   
+
    # Google Cloud TTS
    GOOGLE_APPLICATION_CREDENTIALS={path/to/your/credentials.json}
    ```
@@ -89,7 +89,59 @@ The project uses Python 3.9.6 and requires a Python virtual environment for prop
 
 ## Usage
 
-Run the main application:
+### Running the Main Application
+
+Run the main application for local audio playback:
 ```bash
-python main.py
+python -m backend.main
 ```
+
+### Using the API Endpoint
+
+The project includes a FastAPI server that provides an audio streaming endpoint for frontend applications.
+
+1. Start the API server:
+   ```bash
+   python -m backend.run_api
+   ```
+
+2. The API will be available at `http://localhost:8000` with the following endpoints:
+   - `GET /` - Health check endpoint
+   - `GET /api/audio?prompt=your_question_here` - Audio streaming endpoint
+
+3. Connecting from a frontend:
+   ```javascript
+   // Example JavaScript code to connect to the audio stream
+   async function playAudioFromAPI(prompt) {
+     try {
+       const response = await fetch(`http://localhost:8000/api/audio?prompt=${encodeURIComponent(prompt)}`);
+
+       if (!response.ok) {
+         throw new Error(`HTTP error! status: ${response.status}`);
+       }
+
+       // Get the audio context
+       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+       // Get the response as an array buffer
+       const arrayBuffer = await response.arrayBuffer();
+
+       // Convert the array buffer to an audio buffer
+       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+       // Create a source node
+       const source = audioContext.createBufferSource();
+       source.buffer = audioBuffer;
+
+       // Connect the source to the destination (speakers)
+       source.connect(audioContext.destination);
+
+       // Start playing
+       source.start();
+     } catch (error) {
+       console.error('Error playing audio:', error);
+     }
+   }
+   ```
+
+   Note: For streaming PCM audio, you may need a more advanced implementation that processes chunks as they arrive.

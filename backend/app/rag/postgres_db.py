@@ -31,7 +31,7 @@ class PostgresVectorDB(VectorDatabase):
                             (
                                 id        TEXT PRIMARY KEY,
                                 content   TEXT,
-                                embedding VECTOR(384)
+                                embedding VECTOR(3072)
                             );
                             """)
 
@@ -39,8 +39,8 @@ class PostgresVectorDB(VectorDatabase):
         """
         Inserts or updates a document with its embedding.
         """
-        embedding = self.embedding_calculator.calculate_embeddings(text)
-        embedding_str = ','.join(map(str, embedding.tolist()))
+        embeddings = self.embedding_calculator.calculate_embeddings(text)
+        embedding_str = ','.join(map(str, embeddings))
         self.cursor.execute("""
                             INSERT INTO documents (id, content, embedding)
                             VALUES (%s, %s, %s)
@@ -51,8 +51,8 @@ class PostgresVectorDB(VectorDatabase):
         """
         Retrieves top-k documents most similar to the query vector.
         """
-        query_embedding = self.embedding_calculator.calculate_embeddings(query)
-        embedding_str = ','.join(map(str, query_embedding.tolist()))
+        query_embeddings = self.embedding_calculator.calculate_embeddings(query)
+        embedding_str = ','.join(map(str, query_embeddings))
 
         self.cursor.execute(f"""
             SELECT id, content, embedding <=> %s AS similarity
@@ -61,4 +61,10 @@ class PostgresVectorDB(VectorDatabase):
             LIMIT %s;
         """, (f'[{embedding_str}]', f'[{embedding_str}]', top_k))
 
-        return self.cursor.fetchall()
+        results = self.cursor.fetchall()
+        texts = []
+
+        for _, text, _ in results:
+            texts.append(text)
+
+        return texts

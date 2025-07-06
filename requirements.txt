@@ -1,0 +1,17 @@
+# Core dependencies
+numpy
+python-dotenv
+sounddevice
+asyncio
+
+# LLM and RAG
+google-generativeai
+psycopg2-binary
+pgvector
+
+# TTS
+google-cloud-texttospeech
+
+# API
+fastapi
+uvicorn

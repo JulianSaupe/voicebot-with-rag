@@ -13,6 +13,7 @@ from backend.app.pipeline.stages.llm_stage import LLMStage
 from backend.app.pipeline.stages.rag_stage import RAGStage
 from backend.app.pipeline.stages.tts_stage import TTSStage
 from backend.app.rag.postgres_db import PostgresVectorDB
+from backend.app.rag.vector_database import VectorDatabase
 
 
 class ContinuousAudioPlayer:
@@ -135,7 +136,7 @@ class ContinuousAudioPlayer:
 async def main():
     load_dotenv()
 
-    prompt = ""
+    prompt = "Ab welchem Jahr soll die elektronische Patientenakte (ePA) für alle Versicherten in Deutschland verfügbar sein und was sind DiGA?"
     task_description = ("Du bist ein KI Agent, welcher Antworten auf Fragen von den Nutzer geben kann."
                         "Rege den Nutzer am Ende deiner Antwort an weitere Fragen zu stellen und mache dazu einige Vorschläge."
                         "Gebe nur ganze Sätze wieder, welche mit Hilfe von TTS an den Benutzer ausgegeben werden."
@@ -145,6 +146,7 @@ async def main():
     # Initialize components
     llm = Gemini()
     vector_db = PostgresVectorDB(llm)
+    # insert_mock_data(vector_db)
     rag_stage = RAGStage(embedding_calculator=llm, vector_db=vector_db)
     llm_stage = LLMStage(llm=llm, prompt_builder=PromptBuilder(task_description))
     tts_stage = TTSStage(voice_name="de-DE-Chirp3-HD-Charon", language_code="de-DE")
@@ -223,6 +225,13 @@ async def main():
     finally:
         await audio_player.stop()
         print("✅ Done!")
+
+
+def insert_mock_data(db: VectorDatabase):
+    db.insert_document("Telemedizin und digitale Gesundheitsdienste in Deutschland",
+                       "Die Digitalisierung revolutioniert das deutsche Gesundheitswesen. Telemedizin ermöglicht es Ärzten, Patienten aus der Ferne zu behandeln, was besonders in ländlichen Gebieten von großem Vorteil ist. Seit 2020 können Videosprechstunden vollständig über die gesetzliche Krankenversicherung abgerechnet werden. Die elektronische Patientenakte (ePA) wird schrittweise eingeführt und soll ab 2025 für alle Versicherten verfügbar sein. Sie speichert Befunde, Diagnosen und Behandlungsverläufe digital und macht sie für autorisierte Ärzte zugänglich. Gesundheits-Apps auf Rezept, sogenannte DiGA (Digitale Gesundheitsanwendungen), können seit 2020 von Ärzten verschrieben werden. Diese Apps helfen bei der Therapie von Krankheiten wie Diabetes, Depressionen oder Tinnitus. Künstliche Intelligenz wird zunehmend für die Auswertung von Röntgenbildern und die Früherkennung von Krankheiten eingesetzt.")
+    db.insert_document("Verkehrswende und nachhaltige Mobilität in deutschen Städten",
+                       "Deutsche Städte stehen vor der Herausforderung, ihre Mobilität nachhaltiger zu gestalten. Der Verkehrssektor ist für etwa 20% der deutschen CO2-Emissionen verantwortlich. Viele Städte setzen auf eine Verkehrswende, die verschiedene Maßnahmen umfasst. Der öffentliche Nahverkehr wird ausgebaut und elektrifiziert. Busse und Bahnen fahren zunehmend mit Strom aus erneuerbaren Energien. Fahrradinfrastruktur wird massiv erweitert - geschützte Radwege und Fahrradschnellstraßen entstehen. Car-Sharing und Bike-Sharing-Systeme ergänzen das Angebot. Umweltzonen und Dieselfahrverbote reduzieren die Luftverschmutzung. Einige Städte wie Freiburg oder Münster gelten als Vorreiter nachhaltiger Mobilität. Sie haben den Radverkehrsanteil auf über 35% gesteigert. Elektromobilität wird durch den Ausbau von Ladesäulen gefördert. Bis 2030 sollen in Deutschland eine Million öffentliche Ladepunkte entstehen.")
 
 
 if __name__ == "__main__":

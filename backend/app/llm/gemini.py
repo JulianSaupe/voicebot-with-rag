@@ -18,5 +18,6 @@ class Gemini(LLMProvider, EmbeddingCalculator):
         for chunk in stream:
             yield chunk.text
 
-    def calculate_embeddings(self, text: str):
-        return self.client.models.embed_content(model="gemini-2.0-flash", contents=text).embeddings[0]
+    def calculate_embeddings(self, text: str) -> list[float]:
+        result = self.client.models.embed_content(model="gemini-embedding-exp-03-07", contents=text).embeddings[0]
+        return result.values

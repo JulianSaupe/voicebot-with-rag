@@ -10,4 +10,5 @@ class RAGStage(Stage):
         self.embedding_calculator = embedding_calculator
 
     def __call__(self, data: RAGStageCall) -> LLMStageCall:
-        return LLMStageCall(user_prompt=data.prompt, context=[])
+        context = self.vector_db.search(data.prompt, 1)
+        return LLMStageCall(user_prompt=data.prompt, context=context)
