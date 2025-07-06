@@ -17,13 +17,9 @@
     $: isProcessing = audioState.isProcessing;
 
     // Update audio state helper function
-    const updateAudioState = (updates: Partial<AudioService.AudioState>, source: string) => {
+    const updateAudioState = (updates: Partial<AudioService.AudioState>) => {
         // Create a new object to ensure reactivity
-        const newState = {...audioState, ...updates};
-        audioState = newState;
-
-        // Force UI update by logging the state
-        console.log("[", source, "] Audio state updated:", audioState.isProcessing);
+        audioState = {...audioState, ...updates};
     };
 
     // Update subtitle helper function
@@ -34,7 +30,7 @@
     onMount(() => {
         // Initialize AudioContext
         audioState.audioContext = AudioService.initAudioContext();
-        updateAudioState(audioState, "onMount");
+        updateAudioState(audioState);
 
         return () => {
             AudioService.stopAudio(audioState);
@@ -48,10 +44,10 @@
 
         if (enabled) {
             updateSubtitle('Voicebot activated. Enter your question...');
-            updateAudioState({isListening: false}, "handleToggleVoicebot");
+            updateAudioState({isListening: false});
         } else {
             updateSubtitle('Voicebot disabled');
-            updateAudioState({isListening: false}, "handleToggleVoicebot");
+            updateAudioState({isListening: false});
             AudioService.stopAudio(audioState);
             setTimeout(() => {
                 updateSubtitle('');
@@ -62,13 +58,11 @@
     const submitPrompt = async () => {
         if (!userPrompt.trim() || !isVoicebotEnabled || isProcessing) return;
 
-        console.log("Before API call - isProcessing:", audioState.isProcessing);
 
         // Set isProcessing directly to ensure UI updates
         audioState.isProcessing = true;
-        updateAudioState(audioState, "submitPrompt before API call");
+        updateAudioState(audioState);
 
-        console.log("After setting isProcessing to true:", audioState.isProcessing);
 
         try {
             await AudioService.submitPrompt(
@@ -78,13 +72,11 @@
                 updateSubtitle
             );
         } finally {
-            console.log("API call completed - Before setting isProcessing to false:", audioState.isProcessing);
 
             // Set isProcessing directly to ensure UI updates
             audioState.isProcessing = false;
-            updateAudioState(audioState, "submitPrompt finally");
+            updateAudioState(audioState);
 
-            console.log("After setting isProcessing to false:", audioState.isProcessing);
         }
     };
 

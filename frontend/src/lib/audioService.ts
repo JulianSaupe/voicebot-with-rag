@@ -32,7 +32,6 @@ export function initAudioContext(): AudioContext {
 
 // Stop audio playback
 export function stopAudio(state: AudioState): void {
-    console.log("stopAudio - Before stopping audio:", state.isProcessing);
 
     if (state.audioSource) {
         state.audioSource.stop();
@@ -43,7 +42,6 @@ export function stopAudio(state: AudioState): void {
     state.audioLevel = 0;
     state.isProcessing = false;
 
-    console.log("stopAudio - After setting isProcessing to false:", state.isProcessing);
 }
 
 // Process streaming audio data
@@ -51,10 +49,9 @@ export async function processAudioStream(
     response: Response,
     sampleRate: number,
     state: AudioState,
-    updateState: (updates: Partial<AudioState>, source: string) => void,
+    updateState: (updates: Partial<AudioState>) => void,
     onError: (message: string) => void
 ): Promise<void> {
-    console.log("Starting processAudioStream - isProcessing:", state.isProcessing);
     try {
         // Get a reader for the stream
         const reader = response.body?.getReader();
@@ -76,7 +73,7 @@ export async function processAudioStream(
 
         // Set up audio visualization
         state.isPlaying = true;
-        updateState({isPlaying: true}, "processAudioStream");
+        updateState({isPlaying: true});
 
         let audioLevelCancelled = false;
 
@@ -91,7 +88,7 @@ export async function processAudioStream(
                 sum += dataArray[i];
             }
             const newAudioLevel = sum / bufferLength;
-            updateState({audioLevel: newAudioLevel}, "updateAudioLevel");
+            updateState({audioLevel: newAudioLevel});
 
             // Request next frame if still playing
             if (state.isPlaying) {
@@ -147,19 +144,17 @@ export async function processAudioStream(
                         source.start(0);
                         currentTime = state.audioContext!.currentTime + audioBuffer.duration;
                         isFirstPlay = false;
-                        console.log("Starting first audio chunk");
                     } else {
                         // Schedule playback to maintain continuity
                         // Ensure we don't schedule in the past
                         const startTime = Math.max(currentTime, state.audioContext!.currentTime);
                         source.start(startTime);
                         currentTime = startTime + audioBuffer.duration;
-                        console.log(`Scheduled audio at ${startTime}, duration: ${audioBuffer.duration}`);
                     }
 
                     // Store the source to prevent garbage collection before it plays
                     state.audioSource = source;
-                    updateState({audioSource: source}, "processQueue");
+                    updateState({audioSource: source});
 
                     // Clear the queue
                     audioQueue = [];
@@ -176,7 +171,6 @@ export async function processAudioStream(
             const {done, value} = await reader.read();
 
             if (done) {
-                console.log('Stream complete');
                 break;
             }
 
@@ -208,7 +202,6 @@ export async function processAudioStream(
 
         // When all chunks are processed
         audioLevelCancelled = true;
-        console.log("All chunks processed - Before setting isProcessing to false:", state.isProcessing);
 
         // Set isProcessing directly to ensure UI updates
         state.isProcessing = false;
@@ -217,15 +210,13 @@ export async function processAudioStream(
             isListening: false,
             audioLevel: 0,
             isProcessing: false
-        }, "processAudioStream");
+        });
 
-        console.log("After setting isProcessing to false:", state.isProcessing);
 
-    } catch (error) {
+    } catch (error: Error | any) {
         console.error('Error processing audio stream:', error);
         onError(`Error processing audio: ${error.message}`);
 
-        console.log("Error in processAudioStream - Before setting isProcessing to false:", state.isProcessing);
 
         // Set isProcessing directly to ensure UI updates
         state.isProcessing = false;
@@ -233,9 +224,8 @@ export async function processAudioStream(
             isPlaying: false,
             isListening: false,
             isProcessing: false
-        }, "processAudioStream");
+        });
 
-        console.log("After setting isProcessing to false:", state.isProcessing);
     }
 }
 
@@ -243,22 +233,20 @@ export async function processAudioStream(
 export async function submitPrompt(
     userPrompt: string,
     state: AudioState,
-    updateState: (updates: Partial<AudioState>, source: string) => void,
+    updateState: (updates: Partial<AudioState>) => void,
     updateSubtitle: (subtitle: string) => void
 ): Promise<void> {
     if (!userPrompt.trim() || !state.audioContext) return;
 
-    console.log("submitPrompt - Initial state.isProcessing:", state.isProcessing);
 
     try {
         // Set isProcessing directly to ensure UI updates
         state.isProcessing = true;
-        updateState({isProcessing: true}, "submitPrompt");
-        console.log("After setting isProcessing to true:", state.isProcessing);
+        updateState({isProcessing: true});
 
         stopAudio(state);
         state.audioChunks = [];
-        updateState({audioChunks: []}, "submitPrompt");
+        updateState({audioChunks: []});
 
         updateSubtitle(`Processing: "${userPrompt}"`);
 
@@ -274,7 +262,7 @@ export async function submitPrompt(
 
         // Update UI
         updateSubtitle(`AI is responding to: "${userPrompt}"`);
-        updateState({isListening: true}, "submitPrompt");
+        updateState({isListening: true});
 
         // Process the audio stream
         await processAudioStream(
@@ -285,17 +273,15 @@ export async function submitPrompt(
             (errorMessage) => updateSubtitle(errorMessage)
         );
 
-    } catch (error) {
+    } catch (error: Error | any) {
         console.error('Error fetching audio:', error);
         updateSubtitle(`Error: ${error.message}`);
-        updateState({isListening: false}, "submitPrompt");
+        updateState({isListening: false});
     } finally {
-        console.log("submitPrompt finally - Before setting isProcessing to false:", state.isProcessing);
 
         // Set isProcessing directly to ensure UI updates
         state.isProcessing = false;
-        updateState({isProcessing: false}, "submitPrompt");
+        updateState({isProcessing: false});
 
-        console.log("After setting isProcessing to false:", state.isProcessing);
     }
 }
