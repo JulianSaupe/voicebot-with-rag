@@ -9,16 +9,22 @@ export const API_CONFIG = {
    * This can be overridden by setting the VITE_API_BASE_URL environment variable
    */
   baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
-  
+
   /**
    * Audio endpoint path
    */
   audioEndpoint: '/api/audio',
-  
+
   /**
    * Get the full URL for the audio API endpoint
    */
-  getAudioUrl: (prompt: string): string => {
-    return `${API_CONFIG.baseUrl}${API_CONFIG.audioEndpoint}?prompt=${encodeURIComponent(prompt)}`;
+  getAudioUrl: (prompt: string, voice?: string): string => {
+    const params = new URLSearchParams({
+      prompt: prompt
+    });
+    if (voice) {
+      params.append('voice', voice);
+    }
+    return `${API_CONFIG.baseUrl}${API_CONFIG.audioEndpoint}?${params.toString()}`;
   }
 };

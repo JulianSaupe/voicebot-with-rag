@@ -9,6 +9,16 @@
     let isVoicebotEnabled = false;
     let currentSubtitle = '';
     let userPrompt = '';
+    let selectedVoice = 'de-DE-Chirp3-HD-Charon';
+
+    // Available voices
+    const voices = [
+        'de-DE-Chirp3-HD-Aoede',
+        'de-DE-Chirp3-HD-Charon',
+        'de-DE-Chirp3-HD-Leda',
+        'de-DE-Chirp3-HD-Zephyr',
+        'de-DE-Chirp3-HD-Fenrir'
+    ];
 
     // Audio state
     let audioState = AudioService.createAudioState();
@@ -69,7 +79,8 @@
                 userPrompt,
                 audioState,
                 updateAudioState,
-                updateSubtitle
+                updateSubtitle,
+                selectedVoice
             );
         } finally {
 
@@ -95,6 +106,15 @@
 </svelte:head>
 
 <main class="main-container">
+    <div class="voice-selector">
+        <label for="voice-select">Voice:</label>
+        <select id="voice-select" bind:value={selectedVoice}>
+            {#each voices as voice}
+                <option value={voice}>{voice}</option>
+            {/each}
+        </select>
+    </div>
+
     <div class="header">
         <h1 class="title">AI Voicebot</h1>
         <p class="subtitle">Voice Assistant</p>

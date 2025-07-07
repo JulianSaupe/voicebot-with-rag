@@ -11,4 +11,4 @@ class RAGStage(Stage):
 
     def __call__(self, data: RAGStageCall) -> LLMStageCall:
         context = self.vector_db.search(data.prompt, 1)
-        return LLMStageCall(user_prompt=data.prompt, context=context)
+        return LLMStageCall(user_prompt=data.prompt, context=context, voice=data.voice)

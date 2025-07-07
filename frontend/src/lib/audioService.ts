@@ -234,7 +234,8 @@ export async function submitPrompt(
     userPrompt: string,
     state: AudioState,
     updateState: (updates: Partial<AudioState>) => void,
-    updateSubtitle: (subtitle: string) => void
+    updateSubtitle: (subtitle: string) => void,
+    voice?: string
 ): Promise<void> {
     if (!userPrompt.trim() || !state.audioContext) return;
 
@@ -251,7 +252,7 @@ export async function submitPrompt(
         updateSubtitle(`Processing: "${userPrompt}"`);
 
         // Connect to the API endpoint using the configured URL
-        const response = await fetch(API_CONFIG.getAudioUrl(userPrompt));
+        const response = await fetch(API_CONFIG.getAudioUrl(userPrompt, voice));
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);

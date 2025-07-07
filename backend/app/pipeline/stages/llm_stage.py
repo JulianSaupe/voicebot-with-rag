@@ -12,5 +12,5 @@ class LLMStage(Stage):
     def __call__(self, data: LLMStageCall) -> TTSStageCall:
         prompt = self.prompt_builder.build_with_context(data.context, data.user_prompt)
         text_stream = self.llm.generate_text_stream(prompt=prompt)
-        
-        return TTSStageCall(text_stream=text_stream)
+
+        return TTSStageCall(text_stream=text_stream, voice=data.voice)

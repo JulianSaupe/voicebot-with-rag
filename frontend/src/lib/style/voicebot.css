@@ -16,6 +16,53 @@
     min-height: 100vh;
     padding: 2rem;
     background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.05) 0%, rgba(79, 70, 229, 0.03) 40%, transparent 70%);
+    position: relative;
+}
+
+.voice-selector {
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.voice-selector label {
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.voice-selector select {
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    background: rgba(30, 30, 30, 0.9);
+    color: white;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+}
+
+.voice-selector select:focus {
+    outline: none;
+    border-color: rgba(139, 92, 246, 0.8);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.voice-selector select:hover {
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.voice-selector select option {
+    background: rgba(30, 30, 30, 0.95);
+    color: white;
+    padding: 0.5rem;
 }
 
 .header {
@@ -136,6 +183,24 @@
 
     .main-container {
         padding: 1rem;
+    }
+
+    .voice-selector {
+        top: 1rem;
+        left: 1rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+
+    .voice-selector select {
+        min-width: 180px;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+    }
+
+    .voice-selector label {
+        font-size: 0.8rem;
     }
 
     .prompt-container {

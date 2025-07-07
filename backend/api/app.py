@@ -46,11 +46,11 @@ tts_stage = TTSStage()
 pipeline = AsyncPipeline(stages=[rag_stage, llm_stage, tts_stage])
 
 
-async def audio_generator(prompt: str):
+async def audio_generator(prompt: str, voice: str):
     """Generate audio chunks from the pipeline."""
     try:
         # Get audio stream from pipeline
-        audio_stream = pipeline.run(RAGStageCall(prompt=prompt))
+        audio_stream = pipeline.run(RAGStageCall(prompt=prompt, voice=voice))
 
         # Process audio chunks as they come from the pipeline
         chunk_count = 0
@@ -108,14 +108,17 @@ async def audio_generator(prompt: str):
 
 
 @app.get("/api/audio")
-async def get_audio_stream(prompt: str = Query(..., description="The prompt to generate audio for")):
+async def get_audio_stream(
+    prompt: str = Query(..., description="The prompt to generate audio for"),
+    voice: str = Query("de-DE-Chirp3-HD-Charon", description="The voice to use for TTS")
+):
     """
     Stream audio response for a given prompt.
 
     The audio is streamed as raw PCM int16 data that can be played by the frontend.
     """
     return StreamingResponse(
-        audio_generator(prompt),
+        audio_generator(prompt, voice),
         media_type="audio/pcm",
         headers={
             "Content-Disposition": "attachment; filename=response.pcm",

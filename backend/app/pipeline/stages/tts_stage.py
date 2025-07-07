@@ -15,21 +15,24 @@ from backend.app.pipeline.stages.stage import Stage
 # - de-DE-Chirp3-HD-Fenrir
 
 class TTSStage(Stage):
-    def __init__(self, voice_name="de-DE-Chirp3-HD-Charon", language_code="de-DE"):
+    def __init__(self, language_code="de-DE"):
         self.client = texttospeech.TextToSpeechClient()
-        self.streaming_config = texttospeech.StreamingSynthesizeConfig(
-            voice=texttospeech.VoiceSelectionParams(
-                name=voice_name,
-                language_code=language_code,
-            )
-        )
+        self.language_code = language_code
 
     def __call__(self, data: TTSStageCall) -> AsyncGenerator[np.ndarray, None]:
         """Convert text stream to audio stream."""
-        return self._convert_text_stream_to_audio(data.text_stream)
+        return self._convert_text_stream_to_audio(data.text_stream, data.voice)
 
-    async def _convert_text_stream_to_audio(self, text_stream: Iterable[str]) -> AsyncGenerator[np.ndarray, None]:
+    async def _convert_text_stream_to_audio(self, text_stream: Iterable[str], voice_name: str) -> AsyncGenerator[np.ndarray, None]:
         """Convert streaming text to streaming audio."""
+        # Create streaming config with the specified voice
+        streaming_config = texttospeech.StreamingSynthesizeConfig(
+            voice=texttospeech.VoiceSelectionParams(
+                name=voice_name,
+                language_code=self.language_code,
+            )
+        )
+
         # Create an async queue to bridge sync text stream and async audio generation
         text_queue = asyncio.Queue()
 
@@ -42,8 +45,8 @@ class TTSStage(Stage):
                     await asyncio.sleep(0.001)
                 await text_queue.put(None)  # Signal end
                 print("📝 Text stream consumption complete")
-            except Exception as e:
-                print(f"Error in text producer: {e}")
+            except Exception as exception:
+                print(f"Error in text producer: {exception}")
                 await text_queue.put(None)
 
         # Start the text producer task
@@ -84,7 +87,7 @@ class TTSStage(Stage):
 
                             if text_to_synthesize:
                                 try:
-                                    async for audio_chunk in self._synthesize_text(text_to_synthesize):
+                                    async for audio_chunk in self._synthesize_text(text_to_synthesize, streaming_config):
                                         yield audio_chunk
                                     # Remove the synthesized text from buffer
                                     sentence_buffer = sentence_buffer[len(text_to_synthesize):].lstrip()
@@ -99,7 +102,7 @@ class TTSStage(Stage):
             # Synthesize any remaining text
             if sentence_buffer.strip():
                 try:
-                    async for audio_chunk in self._synthesize_text(sentence_buffer.strip()):
+                    async for audio_chunk in self._synthesize_text(sentence_buffer.strip(), streaming_config):
                         yield audio_chunk
                 except Exception as e:
                     print(f"\n❌ Error synthesizing final text: {e}")
@@ -151,7 +154,7 @@ class TTSStage(Stage):
             if ending in text:
                 pos = text.rfind(ending)
                 if pos > 0:
-                    return text[:pos + 1]
+                    return text[:pos + 2]
 
         # If we have natural breaks, use up to the last one
         natural_breaks = [',', ';', ':', ' - ', ' – ']
@@ -159,7 +162,7 @@ class TTSStage(Stage):
             if break_char in text:
                 pos = text.rfind(break_char)
                 if pos > 0:
-                    return text[:pos + 1]
+                    return text[:pos + 2]
 
         # If text is long enough, find the last word boundary
         if len(text) > 80:
@@ -177,11 +180,11 @@ class TTSStage(Stage):
         # Don't synthesize if we might be in the middle of a word
         return ""
 
-    async def _synthesize_text(self, text: str) -> AsyncGenerator[np.ndarray, None]:
+    async def _synthesize_text(self, text: str, streaming_config) -> AsyncGenerator[np.ndarray, None]:
         """Synthesize a single text chunk to audio."""
         try:
             config_request = texttospeech.StreamingSynthesizeRequest(
-                streaming_config=self.streaming_config
+                streaming_config=streaming_config
             )
 
             text_request = texttospeech.StreamingSynthesizeRequest(
