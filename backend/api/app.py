@@ -12,6 +12,7 @@ from backend.app.pipeline.pipeline_calls import RAGStageCall
 from backend.app.pipeline.stages.llm_stage import LLMStage
 from backend.app.pipeline.stages.rag_stage import RAGStage
 from backend.app.pipeline.stages.tts_stage import TTSStage
+from backend.app.rag.all_mpnet_base_v2 import AllMPNetBaseV2
 from backend.app.rag.postgres_db import PostgresVectorDB
 
 # Create FastAPI app
@@ -28,7 +29,8 @@ app.add_middleware(
 
 # Initialize components (similar to main.py)
 llm = Gemini()
-vector_db = PostgresVectorDB(llm)
+embedding_calculator = AllMPNetBaseV2()
+vector_db = PostgresVectorDB(embedding_calculator)
 rag_stage = RAGStage(embedding_calculator=llm, vector_db=vector_db)
 llm_stage = LLMStage(llm=llm, prompt_builder=PromptBuilder(
     "Du bist ein KI Agent, welcher Antworten auf Fragen von den Nutzer geben kann."
@@ -38,7 +40,7 @@ llm_stage = LLMStage(llm=llm, prompt_builder=PromptBuilder(
     "Beachte den Kontext nur, wenn dieser auch dazu beiträgt bessere Antworten zu geben."
     "Die Frage des Nutzers ist unter 'Frage' gegeben."
 ))
-tts_stage = TTSStage(voice_name="de-DE-Chirp3-HD-Charon", language_code="de-DE")
+tts_stage = TTSStage()
 
 # Create pipeline with TTS stage
 pipeline = AsyncPipeline(stages=[rag_stage, llm_stage, tts_stage])

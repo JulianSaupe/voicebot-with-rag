@@ -31,7 +31,7 @@ class PostgresVectorDB(VectorDatabase):
                             (
                                 id        TEXT PRIMARY KEY,
                                 content   TEXT,
-                                embedding VECTOR(3072)
+                                embedding VECTOR(768)
                             );
                             """)
 
@@ -55,9 +55,9 @@ class PostgresVectorDB(VectorDatabase):
         embedding_str = ','.join(map(str, query_embeddings))
 
         self.cursor.execute(f"""
-            SELECT id, content, embedding <=> %s AS similarity
+            SELECT id, content, embedding <-> %s AS similarity
             FROM documents
-            ORDER BY embedding <=> %s
+            ORDER BY embedding <-> %s
             LIMIT %s;
         """, (f'[{embedding_str}]', f'[{embedding_str}]', top_k))
 

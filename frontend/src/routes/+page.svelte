@@ -97,7 +97,7 @@
 <main class="main-container">
     <div class="header">
         <h1 class="title">AI Voicebot</h1>
-        <p class="subtitle">Futuristic Voice Assistant</p>
+        <p class="subtitle">Voice Assistant</p>
     </div>
 
     <div class="chatbot-container">

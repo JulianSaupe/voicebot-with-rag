@@ -7,6 +7,12 @@ from google.cloud import texttospeech
 from backend.app.pipeline.pipeline_calls import TTSStageCall
 from backend.app.pipeline.stages.stage import Stage
 
+# Voices:
+# - de-DE-Chirp3-HD-Aoede
+# - de-DE-Chirp3-HD-Charon
+# - de-DE-Chirp3-HD-Leda
+# - de-DE-Chirp3-HD-Zephyr
+# - de-DE-Chirp3-HD-Fenrir
 
 class TTSStage(Stage):
     def __init__(self, voice_name="de-DE-Chirp3-HD-Charon", language_code="de-DE"):
@@ -30,8 +36,8 @@ class TTSStage(Stage):
         # Background task to consume the synchronous text stream
         async def text_producer():
             try:
-                for text_chunk in text_stream:
-                    await text_queue.put(text_chunk)
+                for chunk in text_stream:
+                    await text_queue.put(chunk)
                     # Small delay to allow other tasks to run
                     await asyncio.sleep(0.001)
                 await text_queue.put(None)  # Signal end
@@ -117,19 +123,23 @@ class TTSStage(Stage):
         print("-" * 50)
         print("🔊 TTS conversion complete")
 
-    def _is_sentence_complete(self, text):
+    @staticmethod
+    def _is_sentence_complete(text):
         """Check if text contains a complete sentence."""
         return any(punct in text for punct in ['.', '!', '?', '\n'])
 
-    def _has_natural_break(self, text):
+    @staticmethod
+    def _has_natural_break(text):
         """Check if text has a natural break point."""
         return any(punct in text for punct in [',', ';', ':', ' - ', ' – '])
 
-    def _should_break_at_word_boundary(self, text):
+    @staticmethod
+    def _should_break_at_word_boundary(text):
         """Check if we should break at a word boundary due to length."""
         return len(text) > 80  # Increased threshold for better word boundaries
 
-    def _get_text_to_synthesize(self, text):
+    @staticmethod
+    def _get_text_to_synthesize(text):
         """Get the text to synthesize, ensuring we don't split words."""
         text = text.strip()
         if not text:
