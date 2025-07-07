@@ -89,13 +89,6 @@ The project uses Python 3.9.6 and requires a Python virtual environment for prop
 
 ## Usage
 
-### Running the Main Application
-
-Run the main application for local audio playback:
-```bash
-python -m backend.main
-```
-
 ### Using the API Endpoint
 
 The project includes a FastAPI server that provides an audio streaming endpoint for frontend applications.
@@ -108,43 +101,6 @@ The project includes a FastAPI server that provides an audio streaming endpoint 
 2. The API will be available at `http://localhost:8000` with the following endpoints:
    - `GET /` - Health check endpoint
    - `GET /api/audio?prompt=your_question_here` - Audio streaming endpoint
-
-3. Connecting from a frontend:
-   ```javascript
-   // Example JavaScript code to connect to the audio stream
-   async function playAudioFromAPI(prompt) {
-     try {
-       const response = await fetch(`http://localhost:8000/api/audio?prompt=${encodeURIComponent(prompt)}`);
-
-       if (!response.ok) {
-         throw new Error(`HTTP error! status: ${response.status}`);
-       }
-
-       // Get the audio context
-       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-       // Get the response as an array buffer
-       const arrayBuffer = await response.arrayBuffer();
-
-       // Convert the array buffer to an audio buffer
-       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-       // Create a source node
-       const source = audioContext.createBufferSource();
-       source.buffer = audioBuffer;
-
-       // Connect the source to the destination (speakers)
-       source.connect(audioContext.destination);
-
-       // Start playing
-       source.start();
-     } catch (error) {
-       console.error('Error playing audio:', error);
-     }
-   }
-   ```
-
-   Note: For streaming PCM audio, you may need a more advanced implementation that processes chunks as they arrive.
 
 ### Frontend Setup
 

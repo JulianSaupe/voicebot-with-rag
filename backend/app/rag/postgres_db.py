@@ -8,8 +8,8 @@ from backend.app.rag.vector_database import VectorDatabase
 
 
 class PostgresVectorDB(VectorDatabase):
-    def __init__(self, embedding_calculator: EmbeddingCalculator):
-        super().__init__(embedding_calculator)
+    def __init__(self, embedding_calculator: EmbeddingCalculator, min_similarity: float = 0.5):
+        super().__init__(embedding_calculator, min_similarity)
 
         load_dotenv()
 
@@ -57,9 +57,10 @@ class PostgresVectorDB(VectorDatabase):
         self.cursor.execute(f"""
             SELECT id, content, embedding <-> %s AS similarity
             FROM documents
+            WHERE embedding <-> %s >= %s
             ORDER BY embedding <-> %s
             LIMIT %s;
-        """, (f'[{embedding_str}]', f'[{embedding_str}]', top_k))
+        """, (f'[{embedding_str}]', f'[{embedding_str}]', self.min_similarity, f'[{embedding_str}]', top_k))
 
         results = self.cursor.fetchall()
         texts = []

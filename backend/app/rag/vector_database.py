@@ -4,8 +4,9 @@ from backend.app.rag.embedding_calculator import EmbeddingCalculator
 
 
 class VectorDatabase(ABC):
-    def __init__(self, embedding_calculator: EmbeddingCalculator):
+    def __init__(self, embedding_calculator: EmbeddingCalculator, min_similarity: float = 0.5):
         self.embedding_calculator = embedding_calculator
+        self.min_similarity = min_similarity
 
     @abstractmethod
     def create_table(self):
