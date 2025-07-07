@@ -7,6 +7,7 @@ from google.cloud import texttospeech
 from backend.app.pipeline.pipeline_calls import TTSStageCall
 from backend.app.pipeline.stages.stage import Stage
 
+
 # Voices:
 # - de-DE-Chirp3-HD-Aoede
 # - de-DE-Chirp3-HD-Charon
@@ -23,7 +24,8 @@ class TTSStage(Stage):
         """Convert text stream to audio stream."""
         return self._convert_text_stream_to_audio(data.text_stream, data.voice)
 
-    async def _convert_text_stream_to_audio(self, text_stream: Iterable[str], voice_name: str) -> AsyncGenerator[np.ndarray, None]:
+    async def _convert_text_stream_to_audio(self, text_stream: Iterable[str], voice_name: str) -> AsyncGenerator[
+        np.ndarray, None]:
         """Convert streaming text to streaming audio."""
         # Create streaming config with the specified voice
         streaming_config = texttospeech.StreamingSynthesizeConfig(
@@ -87,7 +89,8 @@ class TTSStage(Stage):
 
                             if text_to_synthesize:
                                 try:
-                                    async for audio_chunk in self._synthesize_text(text_to_synthesize, streaming_config):
+                                    async for audio_chunk in self._synthesize_text(text_to_synthesize,
+                                                                                   streaming_config):
                                         yield audio_chunk
                                     # Remove the synthesized text from buffer
                                     sentence_buffer = sentence_buffer[len(text_to_synthesize):].lstrip()

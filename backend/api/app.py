@@ -109,8 +109,8 @@ async def audio_generator(prompt: str, voice: str):
 
 @app.get("/api/audio")
 async def get_audio_stream(
-    prompt: str = Query(..., description="The prompt to generate audio for"),
-    voice: str = Query("de-DE-Chirp3-HD-Charon", description="The voice to use for TTS")
+        prompt: str = Query(..., description="The prompt to generate audio for"),
+        voice: str = Query("de-DE-Chirp3-HD-Charon", description="The voice to use for TTS")
 ):
     """
     Stream audio response for a given prompt.
