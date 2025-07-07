@@ -1,4 +1,3 @@
-import asyncio
 import time
 
 from fastapi import FastAPI, HTTPException, Query
@@ -15,34 +14,32 @@ from backend.app.pipeline.stages.tts_stage import TTSStage
 from backend.app.rag.all_mpnet_base_v2 import AllMPNetBaseV2
 from backend.app.rag.postgres_db import PostgresVectorDB
 
-# Create FastAPI app
 app = FastAPI(title="VoiceBot API", description="API for streaming audio responses from the VoiceBot")
 
-# Add CORS middleware to allow frontend to connect
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize components (similar to main.py)
 llm = Gemini()
 embedding_calculator = AllMPNetBaseV2()
 vector_db = PostgresVectorDB(embedding_calculator)
 rag_stage = RAGStage(embedding_calculator=llm, vector_db=vector_db)
-llm_stage = LLMStage(llm=llm, prompt_builder=PromptBuilder(
-    "Du bist ein KI Agent, welcher Antworten auf Fragen von den Nutzer geben kann."
-    "Rege den Nutzer am Ende deiner Antwort an weitere Fragen zu stellen und mache dazu einige Vorschläge."
-    "Gebe nur ganze Sätze wieder, welche mit Hilfe von TTS an den Benutzer ausgegeben werden."
-    "Um die Fragen besser beantworten zu können, wird unter 'Kontext' weiterer Kontext bereitgestellt."
-    "Beachte den Kontext nur, wenn dieser auch dazu beiträgt bessere Antworten zu geben."
-    "Die Frage des Nutzers ist unter 'Frage' gegeben."
-))
+llm_stage = LLMStage(
+    llm=llm,
+    prompt_builder=PromptBuilder(
+        "Du bist ein KI Agent, welcher Antworten auf Fragen von den Nutzer geben kann."
+        "Rege den Nutzer am Ende deiner Antwort an weitere Fragen zu stellen und mache dazu einige Vorschläge."
+        "Gebe nur ganze Sätze wieder, welche mit Hilfe von TTS an den Benutzer ausgegeben werden."
+        "Um die Fragen besser beantworten zu können, wird unter 'Kontext' weiterer Kontext bereitgestellt."
+        "Beachte den Kontext nur, wenn dieser auch dazu beiträgt bessere Antworten zu geben."
+        "Die Frage des Nutzers ist unter 'Frage' gegeben."
+    ))
 tts_stage = TTSStage()
 
-# Create pipeline with TTS stage
 pipeline = AsyncPipeline(stages=[rag_stage, llm_stage, tts_stage])
 
 
@@ -87,11 +84,7 @@ async def audio_generator(prompt: str, voice: str):
                     yield bytes(buffer)
                     buffer = bytearray()
                 else:
-                    # Send the chunk directly
                     yield audio_bytes
-
-            # No delay between chunks - let the frontend handle buffering
-            # This ensures a continuous stream of audio data
 
         # Send any remaining buffered data
         if buffer:

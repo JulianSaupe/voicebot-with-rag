@@ -107,7 +107,6 @@
 
 <main class="main-container">
     <div class="voice-selector">
-        <label for="voice-select">Voice:</label>
         <select id="voice-select" bind:value={selectedVoice}>
             {#each voices as voice}
                 <option value={voice}>{voice}</option>
