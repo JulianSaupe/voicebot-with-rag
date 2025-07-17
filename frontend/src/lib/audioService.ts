@@ -50,7 +50,8 @@ export async function processAudioStream(
     sampleRate: number,
     state: AudioState,
     updateState: (updates: Partial<AudioState>) => void,
-    onError: (message: string) => void
+    onError: (message: string) => void,
+    updateSubtitle: (subtitle: string) => void
 ): Promise<void> {
     try {
         // Get a reader for the stream
@@ -107,6 +108,7 @@ export async function processAudioStream(
         let isProcessing = false;
         let currentTime = state.audioContext.currentTime; // Start with current audio context time
         let isFirstPlay = true;
+        let totalAudioDuration = 0; // Track total audio duration
 
         // Function to process and play audio from the queue
         const processQueue = async () => {
@@ -120,7 +122,7 @@ export async function processAudioStream(
                 audioQueue.forEach(chunk => totalLength += chunk.length);
 
                 // Process if we have enough data or accumulated enough chunks
-                // For the first chunk, we process immediately to start playback faster
+                // For the first chunk, we process immediately to start playbook faster
                 if (totalLength >= minBufferSize || audioQueue.length >= maxQueueSize || isFirstPlay) {
                     const combinedBuffer = new Float32Array(totalLength);
                     let offset = 0;
@@ -151,6 +153,9 @@ export async function processAudioStream(
                         source.start(startTime);
                         currentTime = startTime + audioBuffer.duration;
                     }
+
+                    // Track total audio duration
+                    totalAudioDuration += audioBuffer.duration;
 
                     // Store the source to prevent garbage collection before it plays
                     state.audioSource = source;
@@ -200,11 +205,27 @@ export async function processAudioStream(
             await new Promise(resolve => setTimeout(resolve, 10));
         }
 
-        // When all chunks are processed
+        // Calculate when all audio should finish playing
+        const finishTime = state.audioContext!.currentTime + totalAudioDuration;
+        const waitTime = Math.max(0, (finishTime - state.audioContext!.currentTime) * 1000);
+
+        console.log(`Waiting ${waitTime}ms for audio to finish playing...`);
+
+        // Wait for all audio to finish, then clean up
+        if (waitTime > 0) {
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+
+        // Additional small buffer to ensure audio has fully finished
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // When all audio has finished playing
         audioLevelCancelled = true;
 
-        // Set isProcessing directly to ensure UI updates
-        state.isProcessing = false;
+        // Clear the subtitle when audio processing completes
+        updateSubtitle('');
+
+        // Reset all state using only the updateState function
         updateState({
             isPlaying: false,
             isListening: false,
@@ -212,20 +233,25 @@ export async function processAudioStream(
             isProcessing: false
         });
 
+        console.log('Audio processing completed, isProcessing set to false');
 
     } catch (error: Error | any) {
         console.error('Error processing audio stream:', error);
         onError(`Error processing audio: ${error.message}`);
 
+        // Clear error message after 5 seconds to avoid confusion
+        setTimeout(() => {
+            updateSubtitle('');
+        }, 5000);
 
-        // Set isProcessing directly to ensure UI updates
-        state.isProcessing = false;
+        // Reset state using only the updateState function
         updateState({
             isPlaying: false,
             isListening: false,
             isProcessing: false
         });
 
+        console.log('Audio processing error, isProcessing set to false');
     }
 }
 
@@ -239,16 +265,15 @@ export async function submitPrompt(
 ): Promise<void> {
     if (!userPrompt.trim() || !state.audioContext) return;
 
-
     try {
-        // Set isProcessing directly to ensure UI updates
-        state.isProcessing = true;
+        // Set processing state using updateState function
         updateState({isProcessing: true});
 
         stopAudio(state);
         state.audioChunks = [];
         updateState({audioChunks: []});
 
+        // Clear any previous error messages when starting new operation
         updateSubtitle(`Processing: "${userPrompt}"`);
 
         // Connect to the API endpoint using the configured URL
@@ -271,18 +296,25 @@ export async function submitPrompt(
             sampleRate,
             state,
             updateState,
-            (errorMessage) => updateSubtitle(errorMessage)
+            (errorMessage) => updateSubtitle(errorMessage),
+            updateSubtitle
         );
+
+        console.log('submitPrompt completed successfully');
 
     } catch (error: Error | any) {
         console.error('Error fetching audio:', error);
         updateSubtitle(`Error: ${error.message}`);
         updateState({isListening: false});
-    } finally {
 
-        // Set isProcessing directly to ensure UI updates
-        state.isProcessing = false;
+        // Clear error message after 5 seconds to avoid confusion
+        setTimeout(() => {
+            updateSubtitle('');
+        }, 5000);
+
+        // Reset processing state using updateState function
         updateState({isProcessing: false});
 
+        console.log('submitPrompt error, isProcessing set to false');
     }
 }

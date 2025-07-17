@@ -6,7 +6,6 @@
     import * as SpeechService from '$lib/speechService';
 
     // UI state
-    let isVoicebotEnabled = true;
     let currentSubtitle = '';
     let userPrompt = '';
     let selectedVoice = 'de-DE-Chirp3-HD-Charon';
@@ -46,7 +45,7 @@
         // Initialize AudioContext
         audioState.audioContext = AudioService.initAudioContext();
         updateAudioState(audioState);
-        
+
         // Initialize voicebot as enabled
         updateSubtitle('Voicebot ready. Enter your question...');
 
@@ -55,31 +54,16 @@
         };
     });
 
-
     const submitPrompt = async () => {
-        if (!userPrompt.trim() || !isVoicebotEnabled || isProcessing) return;
+        if (!userPrompt.trim() || isProcessing) return;
 
-
-        // Set isProcessing directly to ensure UI updates
-        audioState.isProcessing = true;
-        updateAudioState(audioState);
-
-
-        try {
-            await AudioService.submitPrompt(
-                userPrompt,
-                audioState,
-                updateAudioState,
-                updateSubtitle,
-                selectedVoice
-            );
-        } finally {
-
-            // Set isProcessing directly to ensure UI updates
-            audioState.isProcessing = false;
-            updateAudioState(audioState);
-
-        }
+        await AudioService.submitPrompt(
+            userPrompt,
+            audioState,
+            updateAudioState,
+            updateSubtitle,
+            selectedVoice
+        );
     };
 
     // Handle Enter key in the input field
@@ -102,8 +86,8 @@
 
     const handleStartRecording = async () => {
         await SpeechService.recordAndTranscribe(
-            speechState, 
-            updateSpeechState, 
+            speechState,
+            updateSpeechState,
             updateSubtitle,
             (transcription: string) => {
                 userPrompt = transcription;
@@ -136,47 +120,47 @@
     </div>
 
     <div class="chatbot-container">
-        <SpeechBubble {audioLevel} {isListening} {isVoicebotEnabled}/>
+        <SpeechBubble {audioLevel} {isListening}/>
 
         <div class="controls">
-                <div class="microphone-controls">
-                    <button
-                            class="microphone-toggle-button"
-                            class:enabled={isMicrophoneEnabled}
-                            on:click={handleToggleMicrophone}
-                    >
-                        {isMicrophoneEnabled ? '🎤 Microphone On' : '🎤 Enable Microphone'}
-                    </button>
-                    
-                    {#if isMicrophoneEnabled}
-                        <button
-                                class="record-button"
-                                class:recording={isRecording}
-                                on:click={isRecording ? handleStopRecording : handleStartRecording}
-                                disabled={audioState.isProcessing}
-                        >
-                            {isRecording ? '⏹️ Stop Recording' : '🔴 Start Recording'}
-                        </button>
-                    {/if}
-                </div>
+            <div class="microphone-controls">
+                <button
+                        class="microphone-toggle-button"
+                        class:enabled={isMicrophoneEnabled}
+                        on:click={handleToggleMicrophone}
+                >
+                    {isMicrophoneEnabled ? '🎤 Microphone On' : '🎤 Enable Microphone'}
+                </button>
 
-                <div class="prompt-container">
-                    <input
-                            type="text"
-                            bind:value={userPrompt}
-                            placeholder="Ask a question or use microphone..."
-                            class="prompt-input"
-                            on:keydown={handleKeyDown}
-                            disabled={audioState.isProcessing}
-                    />
+                {#if isMicrophoneEnabled}
                     <button
-                            class="submit-button"
-                            on:click={submitPrompt}
-                            disabled={!userPrompt.trim() || audioState.isProcessing}
+                            class="record-button"
+                            class:recording={isRecording}
+                            on:click={isRecording ? handleStopRecording : handleStartRecording}
+                            disabled={audioState.isProcessing}
                     >
-                        {audioState.isProcessing ? 'Processing...' : 'Ask'}
+                        {isRecording ? '⏹️ Stop Recording' : '🔴 Start Recording'}
                     </button>
-                </div>
+                {/if}
+            </div>
+
+            <div class="prompt-container">
+                <input
+                        type="text"
+                        bind:value={userPrompt}
+                        placeholder="Ask a question or use microphone..."
+                        class="prompt-input"
+                        on:keydown={handleKeyDown}
+                        disabled={audioState.isProcessing}
+                />
+                <button
+                        class="submit-button"
+                        on:click={submitPrompt}
+                        disabled={!userPrompt.trim() || audioState.isProcessing}
+                >
+                    {audioState.isProcessing ? 'Processing...' : 'Ask'}
+                </button>
+            </div>
         </div>
     </div>
 
