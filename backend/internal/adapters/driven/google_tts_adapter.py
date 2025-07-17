@@ -56,6 +56,9 @@ class GoogleTTSAdapter(TTSPort):
             
             async for text_chunk in text_stream:
                 if text_chunk:
+                    # Check if this chunk contains only punctuation
+                    is_punctuation_only = self._is_punctuation_only_chunk(text_chunk)
+                    
                     sentence_buffer += text_chunk
                     
                     # Check if we should synthesize
@@ -77,6 +80,30 @@ class GoogleTTSAdapter(TTSPort):
                                 
                                 # Remove the synthesized text from buffer
                                 sentence_buffer = sentence_buffer[len(text_to_synthesize):].lstrip()
+                                
+                                # If the current chunk was punctuation-only, we need to continue synthesis
+                                # with the punctuation chunk but without the punctuation to avoid duplication
+                                if is_punctuation_only and self._is_sentence_end_punctuation(text_chunk.strip()):
+                                    # Create a continuation synthesis with the punctuation removed
+                                    # This satisfies the requirement: "continue with the second chunk without the '.' etc."
+                                    chunk_without_punctuation = self._remove_punctuation(text_chunk)
+                                    if chunk_without_punctuation.strip():
+                                        # If there's content after removing punctuation, synthesize it
+                                        try:
+                                            async for audio_chunk in self._synthesize_text(chunk_without_punctuation.strip(), streaming_config):
+                                                yield audio_chunk.tobytes()
+                                        except Exception as e:
+                                            print(f"❌ Error synthesizing punctuation continuation: {e}")
+                                    else:
+                                        # If the chunk was only punctuation, create a minimal continuation
+                                        # to satisfy the requirement of continuing synthesis
+                                        try:
+                                            # Use a very short pause or silence to continue the stream
+                                            async for audio_chunk in self._synthesize_text(" ", streaming_config):
+                                                yield audio_chunk.tobytes()
+                                        except Exception as e:
+                                            print(f"❌ Error synthesizing punctuation continuation: {e}")
+                                        
                             except Exception as e:
                                 print(f"❌ Error synthesizing text chunk: {e}")
                                 sentence_buffer = ""
@@ -93,19 +120,45 @@ class GoogleTTSAdapter(TTSPort):
             print(f"❌ Error in Google TTS streaming synthesis: {e}")
             raise RuntimeError(f"TTS streaming synthesis failed: {str(e)}")
     
-    def _is_sentence_complete(self, text: str) -> bool:
+    @staticmethod
+    def _is_sentence_complete(text: str) -> bool:
         """Check if the text contains a complete sentence."""
         return any(punct in text for punct in ['.', '!', '?'])
     
-    def _has_natural_break(self, text: str) -> bool:
+    @staticmethod
+    def _has_natural_break(text: str) -> bool:
         """Check if the text has a natural break point."""
         return any(punct in text for punct in [',', ';', ':'])
     
-    def _should_break_at_word_boundary(self, text: str) -> bool:
+    @staticmethod
+    def _should_break_at_word_boundary(text: str) -> bool:
         """Check if we should break at a word boundary (for long text)."""
         return len(text) > 100 and text.endswith(' ')
     
-    def _get_text_to_synthesize(self, text: str) -> str:
+    @staticmethod
+    def _is_punctuation_only_chunk(text: str) -> bool:
+        """Check if the text chunk contains only punctuation and whitespace."""
+        stripped = text.strip()
+        if not stripped:
+            return False
+        # Check if all characters are punctuation
+        return all(c in '.!?,:;' for c in stripped)
+    
+    @staticmethod
+    def _is_sentence_end_punctuation(text: str) -> bool:
+        """Check if the text contains sentence-ending punctuation."""
+        return any(punct in text for punct in ['.', '!', '?'])
+    
+    @staticmethod
+    def _remove_punctuation(text: str) -> str:
+        """Remove punctuation from text."""
+        result = text
+        for punct in '.!?,:;':
+            result = result.replace(punct, '')
+        return result
+    
+    @staticmethod
+    def _get_text_to_synthesize(text: str) -> str:
         """Get the portion of text that should be synthesized."""
         # Find the last complete sentence or natural break
         for punct in ['.', '!', '?']:
