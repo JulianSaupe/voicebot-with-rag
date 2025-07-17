@@ -2,14 +2,19 @@
     import {onMount} from 'svelte';
     import SpeechBubble from '$lib/SpeechBubble.svelte';
     import SubtitleDisplay from '$lib/SubtitleDisplay.svelte';
-    import ToggleSwitch from '$lib/ToggleSwitch.svelte';
     import * as AudioService from '$lib/audioService';
+    import * as SpeechService from '$lib/speechService';
 
     // UI state
-    let isVoicebotEnabled = false;
+    let isVoicebotEnabled = true;
     let currentSubtitle = '';
     let userPrompt = '';
     let selectedVoice = 'de-DE-Chirp3-HD-Charon';
+
+    // Speech state
+    let speechState = SpeechService.createSpeechState();
+    $: isMicrophoneEnabled = speechState.isMicrophoneEnabled;
+    $: isRecording = speechState.isRecording;
 
     // Available voices
     const voices = [
@@ -41,29 +46,15 @@
         // Initialize AudioContext
         audioState.audioContext = AudioService.initAudioContext();
         updateAudioState(audioState);
+        
+        // Initialize voicebot as enabled
+        updateSubtitle('Voicebot ready. Enter your question...');
 
         return () => {
             AudioService.stopAudio(audioState);
         };
     });
 
-    const handleToggleVoicebot = (event: CustomEvent) => {
-        // The component already updates isVoicebotEnabled via binding
-        // We just need to react to the new state
-        const enabled = event.detail.enabled;
-
-        if (enabled) {
-            updateSubtitle('Voicebot activated. Enter your question...');
-            updateAudioState({isListening: false});
-        } else {
-            updateSubtitle('Voicebot disabled');
-            updateAudioState({isListening: false});
-            AudioService.stopAudio(audioState);
-            setTimeout(() => {
-                updateSubtitle('');
-            }, 2000);
-        }
-    };
 
     const submitPrompt = async () => {
         if (!userPrompt.trim() || !isVoicebotEnabled || isProcessing) return;
@@ -98,6 +89,31 @@
             submitPrompt();
         }
     };
+
+    // Speech state update helper function
+    const updateSpeechState = (updates: Partial<SpeechService.SpeechState>) => {
+        speechState = {...speechState, ...updates};
+    };
+
+    // Speech functionality using the service
+    const handleToggleMicrophone = async () => {
+        await SpeechService.toggleMicrophone(speechState, updateSpeechState, updateSubtitle);
+    };
+
+    const handleStartRecording = async () => {
+        await SpeechService.recordAndTranscribe(
+            speechState, 
+            updateSpeechState, 
+            updateSubtitle,
+            (transcription: string) => {
+                userPrompt = transcription;
+            }
+        );
+    };
+
+    const handleStopRecording = async () => {
+        await SpeechService.stopRecording(speechState, updateSpeechState, updateSubtitle);
+    };
 </script>
 
 <svelte:head>
@@ -123,18 +139,32 @@
         <SpeechBubble {audioLevel} {isListening} {isVoicebotEnabled}/>
 
         <div class="controls">
-            <ToggleSwitch
-                    bind:enabled={isVoicebotEnabled}
-                    on:toggle={handleToggleVoicebot}
-                    label="Enable Voicebot"
-            />
+                <div class="microphone-controls">
+                    <button
+                            class="microphone-toggle-button"
+                            class:enabled={isMicrophoneEnabled}
+                            on:click={handleToggleMicrophone}
+                    >
+                        {isMicrophoneEnabled ? '🎤 Microphone On' : '🎤 Enable Microphone'}
+                    </button>
+                    
+                    {#if isMicrophoneEnabled}
+                        <button
+                                class="record-button"
+                                class:recording={isRecording}
+                                on:click={isRecording ? handleStopRecording : handleStartRecording}
+                                disabled={audioState.isProcessing}
+                        >
+                            {isRecording ? '⏹️ Stop Recording' : '🔴 Start Recording'}
+                        </button>
+                    {/if}
+                </div>
 
-            {#if isVoicebotEnabled}
                 <div class="prompt-container">
                     <input
                             type="text"
                             bind:value={userPrompt}
-                            placeholder="Ask a question..."
+                            placeholder="Ask a question or use microphone..."
                             class="prompt-input"
                             on:keydown={handleKeyDown}
                             disabled={audioState.isProcessing}
@@ -147,7 +177,6 @@
                         {audioState.isProcessing ? 'Processing...' : 'Ask'}
                     </button>
                 </div>
-            {/if}
         </div>
     </div>
 

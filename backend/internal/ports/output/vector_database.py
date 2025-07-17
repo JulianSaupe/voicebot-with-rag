@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
+from typing import List
 
-from backend.app.rag.embedding_calculator import EmbeddingCalculator
+import numpy as np
+
+from backend.internal.ports.output.embedding_calculator import EmbeddingCalculator
 
 
 class VectorDatabase(ABC):
@@ -9,13 +12,13 @@ class VectorDatabase(ABC):
         self.min_similarity = min_similarity
 
     @abstractmethod
-    def create_table(self):
+    def create_table(self) -> None:
         """Create a table to store documents."""
 
     @abstractmethod
-    def insert_document(self, doc_id: str, text: str):
+    def insert_document(self, doc_id: str, text: str) -> None:
         """Insert document into vector database."""
 
     @abstractmethod
-    def search(self, query: str, top_k: int = 10):
+    def search(self, query: np.ndarray, top_k: int = 10) -> List[str]:
         """Search documents in vector database."""

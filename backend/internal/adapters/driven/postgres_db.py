@@ -1,10 +1,12 @@
 import os
+from typing import List
 
+import numpy as np
 import psycopg2
 from dotenv import load_dotenv
 
-from backend.app.rag.embedding_calculator import EmbeddingCalculator
-from backend.app.rag.vector_database import VectorDatabase
+from backend.internal.ports.output.embedding_calculator import EmbeddingCalculator
+from backend.internal.ports.output.vector_database import VectorDatabase
 
 
 class PostgresVectorDB(VectorDatabase):
@@ -24,7 +26,7 @@ class PostgresVectorDB(VectorDatabase):
         self.cursor = self.conn.cursor()
         self.create_table()
 
-    def create_table(self):
+    def create_table(self) -> None:
         self.cursor.execute("""
                             CREATE EXTENSION IF NOT EXISTS vector;
                             CREATE TABLE IF NOT EXISTS documents
@@ -35,7 +37,7 @@ class PostgresVectorDB(VectorDatabase):
                             );
                             """)
 
-    def insert_document(self, doc_id: str, text: str):
+    def insert_document(self, doc_id: str, text: str) -> None:
         """
         Inserts or updates a document with its embedding.
         """
@@ -47,12 +49,11 @@ class PostgresVectorDB(VectorDatabase):
                             ON CONFLICT (id) DO NOTHING;
                             """, (doc_id, text, f'[{embedding_str}]'))
 
-    def search(self, query: str, top_k: int = 10):
+    def search(self, query: np.ndarray, top_k: int = 10) -> List[str]:
         """
         Retrieves top-k documents most similar to the query vector.
         """
-        query_embeddings = self.embedding_calculator.calculate_embeddings(query)
-        embedding_str = ','.join(map(str, query_embeddings))
+        embedding_str = ','.join(map(str, query))
 
         self.cursor.execute(f"""
             SELECT id, content, embedding <-> %s AS similarity
