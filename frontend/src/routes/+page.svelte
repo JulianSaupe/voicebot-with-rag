@@ -4,6 +4,7 @@
     import SubtitleDisplay from '$lib/SubtitleDisplay.svelte';
     import * as AudioService from '$lib/audioService';
     import * as SpeechService from '$lib/speechService';
+    import SpeechTranscriptionModule from "$lib/SpeechTranscriptionModule.svelte";
 
     // UI state
     let currentSubtitle = '';
@@ -14,6 +15,7 @@
     let speechState = SpeechService.createSpeechState();
     $: isMicrophoneEnabled = speechState.isMicrophoneEnabled;
     $: isRecording = speechState.isRecording;
+    $: isStreaming = speechState.isStreaming;
 
     // Available voices
     const voices = [
@@ -81,23 +83,17 @@
 
     // Speech functionality using the service
     const handleToggleMicrophone = async () => {
-        await SpeechService.toggleMicrophone(speechState, updateSpeechState, updateSubtitle);
-    };
-
-    const handleStartRecording = async () => {
-        await SpeechService.recordAndTranscribe(
-            speechState,
-            updateSpeechState,
+        await SpeechService.toggleMicrophone(
+            speechState, 
+            updateSpeechState, 
             updateSubtitle,
             (transcription: string) => {
+                // Update the input field with transcribed text
                 userPrompt = transcription;
             }
         );
     };
 
-    const handleStopRecording = async () => {
-        await SpeechService.stopRecording(speechState, updateSpeechState, updateSubtitle);
-    };
 </script>
 
 <svelte:head>
@@ -121,27 +117,24 @@
 
     <div class="chatbot-container">
         <SpeechBubble {audioLevel} {isListening}/>
+        <SpeechTranscriptionModule/>
 
         <div class="controls">
             <div class="microphone-controls">
                 <button
                         class="microphone-toggle-button"
                         class:enabled={isMicrophoneEnabled}
+                        class:streaming={isStreaming}
                         on:click={handleToggleMicrophone}
                 >
-                    {isMicrophoneEnabled ? '🎤 Microphone On' : '🎤 Enable Microphone'}
+                    {#if isStreaming}
+                        🎤 Streaming Audio...
+                    {:else if isMicrophoneEnabled}
+                        🎤 Microphone On
+                    {:else}
+                        🎤 Enable Microphone
+                    {/if}
                 </button>
-
-                {#if isMicrophoneEnabled}
-                    <button
-                            class="record-button"
-                            class:recording={isRecording}
-                            on:click={isRecording ? handleStopRecording : handleStartRecording}
-                            disabled={audioState.isProcessing}
-                    >
-                        {isRecording ? '⏹️ Stop Recording' : '🔴 Start Recording'}
-                    </button>
-                {/if}
             </div>
 
             <div class="prompt-container">

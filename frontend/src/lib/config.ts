@@ -21,6 +21,11 @@ export const API_CONFIG = {
   speechEndpoint: '/api/speech',
 
   /**
+   * WebSocket speech endpoint path
+   */
+  speechWebSocketEndpoint: '/ws/speech',
+
+  /**
    * Get the full URL for the audio API endpoint
    */
   getAudioUrl: (prompt: string, voice?: string): string => {
@@ -38,5 +43,13 @@ export const API_CONFIG = {
    */
   getSpeechUrl: (): string => {
     return `${API_CONFIG.baseUrl}${API_CONFIG.speechEndpoint}`;
+  },
+
+  /**
+   * Get the full WebSocket URL for the speech endpoint
+   */
+  getSpeechWebSocketUrl: (): string => {
+    const wsBaseUrl = API_CONFIG.baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+    return `${wsBaseUrl}${API_CONFIG.speechWebSocketEndpoint}`;
   }
 };

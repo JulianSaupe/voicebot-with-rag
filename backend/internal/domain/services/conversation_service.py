@@ -13,7 +13,7 @@ class ConversationService:
             return False
         
         # Business rule: minimum length for meaningful conversation
-        if len(transcription.get_clean_text()) < 2:
+        if len(transcription.get_clean_text()) < 0:
             return False
             
         return True

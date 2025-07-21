@@ -1,6 +1,6 @@
 """FastAPI application using hexagonal architecture."""
 
-from fastapi import FastAPI, Request, Query
+from fastapi import FastAPI, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.internal.container import container
@@ -31,10 +31,10 @@ def create_app() -> FastAPI:
         """Root endpoint to check if the API is running."""
         return {"message": "VoiceBot API is running with Hexagonal Architecture"}
 
-    @app.post("/api/speech")
-    async def transcribe_audio(request: Request):
-        """Transcribe audio from request body."""
-        return await voicebot_controller.transcribe_audio(request)
+    @app.websocket("/ws/speech")
+    async def websocket_transcribe_audio(websocket: WebSocket):
+        """WebSocket endpoint for real-time audio transcription."""
+        await voicebot_controller.transcribe_audio_websocket(websocket)
 
     @app.get("/api/audio")
     async def get_audio_stream(

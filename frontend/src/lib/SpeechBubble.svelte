@@ -241,10 +241,6 @@
         text-transform: uppercase;
     }
 
-    .status-text.inactive {
-        color: #666;
-    }
-
     .status-text.active {
         color: #8b5cf6;
         background: linear-gradient(45deg, #8b5cf6, #6366f1);

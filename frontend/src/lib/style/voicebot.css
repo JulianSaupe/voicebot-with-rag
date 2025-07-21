@@ -201,35 +201,6 @@
     box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
 }
 
-.record-button {
-    padding: 0.8rem 1.5rem;
-    border-radius: 12px;
-    border: none;
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
-}
-
-.record-button.recording {
-    background: linear-gradient(135deg, #7c2d12 0%, #92400e 100%);
-    animation: pulse 1.5s infinite;
-}
-
-.record-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
-}
-
-.record-button:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    background: linear-gradient(135deg, #6b6b6b 0%, #4a4a4a 100%);
-    box-shadow: none;
-}
-
 @keyframes pulse {
     0%, 100% {
         opacity: 1;
@@ -288,8 +259,7 @@
         margin-bottom: 0.5rem;
     }
 
-    .microphone-toggle-button,
-    .record-button {
+    .microphone-toggle-button {
         width: 100%;
         padding: 0.7rem 1rem;
         font-size: 0.9rem;

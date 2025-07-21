@@ -1,4 +1,5 @@
 from typing import AsyncGenerator
+import numpy as np
 
 from backend.internal.ports.output.llm_port import LLMPort
 from backend.internal.ports.output.rag_port import RAGPort
@@ -24,7 +25,7 @@ class VoicebotService:
         self.tts = tts
         self.conversation_service = conversation_service
 
-    async def transcribe_audio(self, audio_data: bytes, language_code: str = "de-DE") -> AudioTranscription:
+    async def transcribe_audio(self, audio_data: np.ndarray, language_code: str = "de-DE") -> AudioTranscription:
         """Transcribe audio data to text using the speech recognition port."""
         transcription = await self.speech_recognition.transcribe_audio(audio_data, language_code)
 
