@@ -87,8 +87,12 @@ class VoicebotController:
         await websocket.accept()
         print("🔌 WebSocket connection established for VAD-based audio transcription")
 
-        # Initialize VAD service for this connection
-        vad = VoiceActivityDetector()
+        # Initialize VAD service for this connection with optimized parameters for faster response
+        vad = VoiceActivityDetector(
+            silence_threshold_ms=200,  # Reduced from 500ms to 200ms for faster response
+            min_speech_duration_ms=100,  # Increased slightly to avoid false positives
+            sample_rate=48000
+        )
 
         try:
             while True:
@@ -113,7 +117,8 @@ class VoicebotController:
 
                                 # Send transcription result back via WebSocket
                                 if transcription.text and len(transcription.text.strip()) > 1:
-                                    result = {
+                                    transcription_result = {
+                                        "type": "transcription",
                                         "transcription": transcription.text,
                                         "confidence": transcription.confidence,
                                         "language_code": transcription.language_code,
@@ -121,7 +126,53 @@ class VoicebotController:
                                     }
 
                                     print(f"🎤 VAD-based transcription: {transcription.text}")
-                                    await websocket.send_text(json.dumps(result))
+                                    await websocket.send_text(json.dumps(transcription_result))
+
+                                    # Process transcription through LLM and generate audio response
+                                    try:
+                                        print(f"🤖 Processing transcription through LLM: {transcription.text}")
+
+                                        # Generate streaming audio response using the voicebot service
+                                        audio_stream = self.voicebot_service.generate_streaming_voice_response(
+                                            transcription.text,
+                                            voice="de-DE-Chirp3-HD-Charon"
+                                        )
+
+                                        # Stream audio chunks back via WebSocket
+                                        chunk_count = 0
+                                        async for audio_chunk in audio_stream:
+                                            if audio_chunk:
+                                                chunk_count += 1
+                                                audio_message = {
+                                                    "type": "audio",
+                                                    "data": list(audio_chunk),
+                                                    # Convert bytes to list for JSON serialization
+                                                    "chunk_number": chunk_count,
+                                                    "status": "streaming"
+                                                }
+                                                await websocket.send_text(json.dumps(audio_message))
+                                                # print(f"🔊 Sent audio chunk {chunk_count} ({len(audio_chunk)} bytes)")
+
+                                        # Send end of audio stream marker
+                                        end_message = {
+                                            "type": "audio_end",
+                                            "total_chunks": chunk_count,
+                                            "status": "complete"
+                                        }
+                                        await websocket.send_text(json.dumps(end_message))
+                                        print(f"🔊 Audio streaming complete - sent {chunk_count} chunks")
+
+                                    except Exception as llm_error:
+                                        print(f"❌ Error in LLM processing or audio generation: {llm_error}")
+                                        import traceback
+                                        traceback.print_exc()
+
+                                        error_message = {
+                                            "type": "audio_error",
+                                            "error": f"Failed to generate audio response: {str(llm_error)}",
+                                            "status": "error"
+                                        }
+                                        await websocket.send_text(json.dumps(error_message))
 
                             except Exception as e:
                                 print(f"❌ Transcription error: {e}")
@@ -150,13 +201,57 @@ class VoicebotController:
                         final_audio, language_code="de-DE"
                     )
                     if final_transcription.text and len(final_transcription.text.strip()) > 1:
-                        result = {
+                        transcription_result = {
+                            "type": "transcription",
                             "transcription": final_transcription.text,
                             "confidence": final_transcription.confidence,
                             "language_code": final_transcription.language_code,
                             "status": "success"
                         }
-                        await websocket.send_text(json.dumps(result))
+                        await websocket.send_text(json.dumps(transcription_result))
+
+                        # Process final transcription through LLM and generate audio response
+                        try:
+                            print(f"🤖 Processing final transcription through LLM: {final_transcription.text}")
+
+                            # Generate streaming audio response using the voicebot service
+                            audio_stream = self.voicebot_service.generate_streaming_voice_response(
+                                final_transcription.text,
+                                voice="de-DE-Chirp3-HD-Charon"
+                            )
+
+                            # Stream audio chunks back via WebSocket
+                            chunk_count = 0
+                            async for audio_chunk in audio_stream:
+                                if audio_chunk:
+                                    chunk_count += 1
+                                    audio_message = {
+                                        "type": "audio",
+                                        "data": list(audio_chunk),  # Convert bytes to list for JSON serialization
+                                        "chunk_number": chunk_count,
+                                        "status": "streaming"
+                                    }
+                                    await websocket.send_text(json.dumps(audio_message))
+                                    print(f"🔊 Sent final audio chunk {chunk_count} ({len(audio_chunk)} bytes)")
+
+                            # Send end of audio stream marker
+                            end_message = {
+                                "type": "audio_end",
+                                "total_chunks": chunk_count,
+                                "status": "complete"
+                            }
+                            await websocket.send_text(json.dumps(end_message))
+                            print(f"🔊 Final audio streaming complete - sent {chunk_count} chunks")
+
+                        except Exception as llm_error:
+                            print(f"❌ Error in final LLM processing or audio generation: {llm_error}")
+                            error_message = {
+                                "type": "audio_error",
+                                "error": f"Failed to generate final audio response: {str(llm_error)}",
+                                "status": "error"
+                            }
+                            await websocket.send_text(json.dumps(error_message))
+
                 except Exception as e:
                     print(f"❌ Failed to transcribe final audio: {e}")
 

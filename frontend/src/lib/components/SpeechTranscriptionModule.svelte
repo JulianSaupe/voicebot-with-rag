@@ -1,22 +1,41 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
-    import { browser } from '$app/environment';
-    import { SpeechStreamingService } from '$lib/speech_streaming_service';
+    import {onMount, onDestroy} from 'svelte';
+    import {browser} from '$app/environment';
+    import {SpeechStreamingService} from '$lib/script/speech_streaming_service';
+    import ChatContainer from "$lib/components/ChatContainer.svelte";
 
     let speechService: SpeechStreamingService;
     let isConnected = false;
     let isRecording = false;
-    let transcription = '';
-    let confidence = 0;
+    let transcription: string = '';
+    let confidence: number = 0;
     let error = '';
     let status = 'Initializing...';
 
+    // Chat state
+    let messages: Array<{
+        id: string;
+        text: string;
+        isUser: boolean;
+        timestamp: Date;
+    }> = [];
+
     // Event handler functions
     function handleTranscription(event: CustomEvent) {
-        const { text, confidence: conf } = event.detail;
+        const {text, confidence: conf} = event.detail;
         transcription = text;
         confidence = conf;
         error = '';
+
+        messages = [
+            ...messages,
+            {
+                id: Math.random().toString(),
+                text,
+                isUser: true,
+                timestamp: new Date()
+            }
+        ];
     }
 
     function handleTranscriptionError(event: CustomEvent) {
@@ -33,25 +52,25 @@
 
         try {
             // Initialize speech service with your backend URL
-            const wsUrl = import.meta.env.VITE_API_BASE_URL 
+            const wsUrl = import.meta.env.VITE_API_BASE_URL
                 ? `ws://${new URL(import.meta.env.VITE_API_BASE_URL).host}/ws/speech`
                 : 'ws://localhost:8000/ws/speech';
-            
+
             speechService = new SpeechStreamingService(wsUrl);
-            
+
             // Setup event listeners for transcription results (only in browser)
             window.addEventListener('transcription', handleTranscription);
             window.addEventListener('transcription-error', handleTranscriptionError);
-            
+
             // Initialize microphone access
             await speechService.initialize();
             status = 'Microphone ready, connecting to server...';
-            
+
             // Connect to WebSocket
             await speechService.connect();
             isConnected = true;
             status = 'Connected and ready to record';
-            
+
         } catch (err) {
             error = `Initialization failed: ${err}`;
             status = 'Error during initialization';
@@ -64,7 +83,7 @@
         if (browser) {
             window.removeEventListener('transcription', handleTranscription);
             window.removeEventListener('transcription-error', handleTranscriptionError);
-            
+
             if (speechService) {
                 speechService.disconnect();
             }
@@ -85,17 +104,17 @@
             confidence = 0;
             error = '';
         }
-        
+
         isRecording = !isRecording;
     }
 </script>
 
 <div class="speech-streaming-container">
-    <h2>🎤 Real-time Speech Transcription</h2>
-    
+    <ChatContainer {messages}/>
+
     <div class="status-section">
         <p class="status">Status: <span class:connected={isConnected} class:error={error}>{status}</span></p>
-        
+
         {#if error}
             <div class="error-message">
                 <strong>Error:</strong> {error}
@@ -104,12 +123,12 @@
     </div>
 
     <div class="controls">
-        <button 
-            on:click={toggleRecording}
-            disabled={!isConnected || !browser}
-            class="record-button"
-            class:recording={isRecording}
-            class:disabled={!isConnected || !browser}
+        <button
+                on:click={toggleRecording}
+                disabled={!isConnected || !browser}
+                class="record-button"
+                class:recording={isRecording}
+                class:disabled={!isConnected || !browser}
         >
             {#if !browser}
                 🎤 Loading...
@@ -120,19 +139,11 @@
             {/if}
         </button>
     </div>
-
-    {#if transcription}
-        <div class="transcription-result">
-            <h3>Transcription Result:</h3>
-            <div class="transcription-text">"{transcription}"</div>
-            <div class="confidence">Confidence: {(confidence * 100).toFixed(1)}%</div>
-        </div>
-    {/if}
 </div>
 
 <style>
     .speech-streaming-container {
-        max-width: 600px;
+        max-width: 100%;
         margin: 0 auto;
         padding: 2rem;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -167,7 +178,7 @@
 
     .controls {
         text-align: center;
-        margin-bottom: 2rem;
+        margin-bottom: 1rem;
     }
 
     .record-button {
@@ -203,36 +214,14 @@
     }
 
     @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.7; }
-        100% { opacity: 1; }
-    }
-
-    .transcription-result {
-        background-color: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 0.5rem;
-        border: 1px solid #dee2e6;
-    }
-
-    .transcription-result h3 {
-        margin-top: 0;
-        color: #495057;
-    }
-
-    .transcription-text {
-        font-size: 1.2rem;
-        font-style: italic;
-        color: #212529;
-        margin: 1rem 0;
-        padding: 1rem;
-        background-color: white;
-        border-radius: 0.375rem;
-        border-left: 4px solid #007bff;
-    }
-
-    .confidence {
-        font-size: 0.9rem;
-        color: #6c757d;
+        0% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.7;
+        }
+        100% {
+            opacity: 1;
+        }
     }
 </style>

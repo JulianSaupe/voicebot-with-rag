@@ -28,14 +28,14 @@ class GoogleSpeechAdapter(SpeechRecognitionPort):
             audio_int16 = (audio_data * 32767).astype(np.int16)
             audio_bytes = audio_int16.tobytes()
 
-            # Configure the speech recognition for PCM audio
+            # Configure the speech recognition for PCM audio - optimized for speed
             config = speech.RecognitionConfig(
                 encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
                 sample_rate_hertz=48000,
                 language_code=language_code,
                 enable_automatic_punctuation=True,
-                model="latest_long",  # Better for longer audio segments
-                enable_word_time_offsets=True,
+                model="latest_short",  # Faster model for shorter audio segments
+                enable_word_time_offsets=False,  # Disable to reduce processing time
                 max_alternatives=1,
                 use_enhanced=True,
             )

@@ -1,20 +1,27 @@
 <script lang="ts">
     import {onMount} from 'svelte';
-    import SpeechBubble from '$lib/SpeechBubble.svelte';
-    import SubtitleDisplay from '$lib/SubtitleDisplay.svelte';
-    import * as AudioService from '$lib/audioService';
-    import * as SpeechService from '$lib/speechService';
-    import SpeechTranscriptionModule from "$lib/SpeechTranscriptionModule.svelte";
+    import ChatContainer from '$lib/components/ChatContainer.svelte';
+    import SubtitleDisplay from '$lib/components/SubtitleDisplay.svelte';
+    import * as AudioService from '$lib/script/audioService';
+    import * as SpeechService from '$lib/script/speechService';
+    import SpeechTranscriptionModule from "$lib/components/SpeechTranscriptionModule.svelte";
 
     // UI state
     let currentSubtitle = '';
     let userPrompt = '';
     let selectedVoice = 'de-DE-Chirp3-HD-Charon';
 
+    // Chat state
+    let messages: Array<{
+        id: string;
+        text: string;
+        isUser: boolean;
+        timestamp: Date;
+    }> = [];
+
     // Speech state
     let speechState = SpeechService.createSpeechState();
     $: isMicrophoneEnabled = speechState.isMicrophoneEnabled;
-    $: isRecording = speechState.isRecording;
     $: isStreaming = speechState.isStreaming;
 
     // Available voices
@@ -28,8 +35,6 @@
 
     // Audio state
     let audioState = AudioService.createAudioState();
-    $: isListening = audioState.isListening;
-    $: audioLevel = audioState.audioLevel;
     $: isProcessing = audioState.isProcessing;
 
     // Update audio state helper function
@@ -56,14 +61,38 @@
         };
     });
 
+    const addMessage = (text: string, isUser: boolean) => {
+        const newMessage = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            text,
+            isUser,
+            timestamp: new Date()
+        };
+        messages = [...messages, newMessage];
+    };
+
     const submitPrompt = async () => {
         if (!userPrompt.trim() || isProcessing) return;
 
+        // Add user message to chat
+        addMessage(userPrompt.trim(), true);
+        const currentPrompt = userPrompt.trim();
+        userPrompt = ''; // Clear input immediately
+
+        // Custom subtitle update function that also adds LLM response to chat
+        const updateSubtitleAndChat = (text: string) => {
+            updateSubtitle(text);
+            // Only add to chat if it's a complete response (not intermediate states)
+            if (text && !text.includes('Processing') && !text.includes('ready')) {
+                addMessage(text, false);
+            }
+        };
+
         await AudioService.submitPrompt(
-            userPrompt,
+            currentPrompt,
             audioState,
             updateAudioState,
-            updateSubtitle,
+            updateSubtitleAndChat,
             selectedVoice
         );
     };
@@ -75,25 +104,6 @@
             submitPrompt();
         }
     };
-
-    // Speech state update helper function
-    const updateSpeechState = (updates: Partial<SpeechService.SpeechState>) => {
-        speechState = {...speechState, ...updates};
-    };
-
-    // Speech functionality using the service
-    const handleToggleMicrophone = async () => {
-        await SpeechService.toggleMicrophone(
-            speechState, 
-            updateSpeechState, 
-            updateSubtitle,
-            (transcription: string) => {
-                // Update the input field with transcribed text
-                userPrompt = transcription;
-            }
-        );
-    };
-
 </script>
 
 <svelte:head>
@@ -116,27 +126,9 @@
     </div>
 
     <div class="chatbot-container">
-        <SpeechBubble {audioLevel} {isListening}/>
         <SpeechTranscriptionModule/>
 
         <div class="controls">
-            <div class="microphone-controls">
-                <button
-                        class="microphone-toggle-button"
-                        class:enabled={isMicrophoneEnabled}
-                        class:streaming={isStreaming}
-                        on:click={handleToggleMicrophone}
-                >
-                    {#if isStreaming}
-                        🎤 Streaming Audio...
-                    {:else if isMicrophoneEnabled}
-                        🎤 Microphone On
-                    {:else}
-                        🎤 Enable Microphone
-                    {/if}
-                </button>
-            </div>
-
             <div class="prompt-container">
                 <input
                         type="text"

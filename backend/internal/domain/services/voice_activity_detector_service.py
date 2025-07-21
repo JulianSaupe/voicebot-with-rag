@@ -15,7 +15,7 @@ class VoiceActivityDetector:
     """Voice Activity Detection service using MediaPipe streaming VAD."""
 
     def __init__(self,
-                 silence_threshold_ms: int = 500,
+                 silence_threshold_ms: int = 200,
                  min_speech_duration_ms: int = 50,
                  sample_rate: int = 48000):
         """
@@ -39,11 +39,11 @@ class VoiceActivityDetector:
         self.is_speaking = False
         self.speech_start_time: float = 0
 
-        # Frame-based smoothing for more stable detection
+        # Frame-based smoothing for more stable detection - optimized for responsiveness
         self.consecutive_voice_frames = 0
         self.consecutive_silence_frames = 0
-        self.min_voice_frames = 3  # Need 3 consecutive voice frames to start
-        self.min_silence_frames = 6  # Need 6 consecutive silence frames to stop
+        self.min_voice_frames = 1  # Reduced from 2 to 1 for faster voice detection
+        self.min_silence_frames = 1  # Keep at 1 for quick silence detection
 
         # MediaPipe streaming setup
         self.classifier = None
@@ -87,16 +87,15 @@ class VoiceActivityDetector:
     def analyze_pcm_audio_activity(self, pcm_data: np.ndarray) -> bool:
         """
         Analyze raw PCM audio data for voice activity using MediaPipe.
-        
+
         Args:
             pcm_data: Raw PCM audio data as numpy array (float32, normalized to [-1, 1])
-            
+
         Returns:
             True if voice activity detected, False otherwise
         """
         if self.classifier is None:
-            # Fallback to energy-based detection if MediaPipe fails
-            return self._energy_based_vad(pcm_data)
+            raise RuntimeError("MediaPipe classifier not initialized")
 
         try:
             # Create AudioData object for MediaPipe
@@ -105,11 +104,7 @@ class VoiceActivityDetector:
                 sample_rate=self.sample_rate
             )
 
-            # Calculate precise timestamp using floating-point arithmetic
-            # This ensures exact timestamp consistency with MediaPipe's expectations
-            timestamp_seconds = self.total_samples_processed / float(self.sample_rate)
-            timestamp_ms = int(round(timestamp_seconds * 1000))
-
+            timestamp_ms = int(round(self.total_samples_processed / self.sample_rate, 6) * (10 ** 3))
             self.total_samples_processed += len(pcm_data)
 
             # Send to MediaPipe for streaming classification
@@ -121,8 +116,7 @@ class VoiceActivityDetector:
             return has_voice
 
         except Exception as e:
-            self.logger.warning(f"MediaPipe VAD failed, using fallback: {e}")
-            return self._energy_based_vad(pcm_data)
+            raise RuntimeError(f"Failed to analyze PCM audio for voice activity: {e}")
 
     def _check_recent_classifications(self) -> bool:
         """Check recent MediaPipe classification results for voice activity."""
@@ -163,24 +157,6 @@ class VoiceActivityDetector:
                         return True
 
             return False
-
-    def _energy_based_vad(self, pcm_data: np.ndarray) -> bool:
-        """Fallback energy-based VAD when MediaPipe is not available."""
-        if len(pcm_data) == 0:
-            return False
-
-        # Calculate RMS energy
-        rms_energy = np.sqrt(np.mean(pcm_data ** 2))
-
-        # Dynamic threshold based on recent audio levels
-        energy_threshold = 0.01  # Adjust based on your needs
-
-        has_voice = rms_energy > energy_threshold
-
-        if has_voice:
-            self.logger.debug(f"Energy VAD: RMS={rms_energy:.4f} > {energy_threshold} = Voice")
-
-        return has_voice
 
     def process_audio_chunk(self, pcm_data: np.ndarray) -> Tuple[bool, Optional[np.ndarray]]:
         """

@@ -7,7 +7,8 @@ from backend.internal.domain.models.conversation_context import ConversationCont
 class ConversationService:
     """Domain service containing core business logic for conversation processing."""
     
-    def validate_transcription(self, transcription: AudioTranscription) -> bool:
+    @staticmethod
+    def validate_transcription(transcription: AudioTranscription) -> bool:
         """Validate that a transcription is suitable for processing."""
         if transcription.is_empty():
             return False
@@ -18,15 +19,17 @@ class ConversationService:
             
         return True
     
-    def create_conversation_context(self, transcription: AudioTranscription, 
-                                  relevant_documents: List[str]) -> ConversationContext:
+    @staticmethod
+    def create_conversation_context(transcription: AudioTranscription,
+                                    relevant_documents: List[str]) -> ConversationContext:
         """Create conversation context from transcription and retrieved documents."""
         return ConversationContext(
             user_query=transcription.get_clean_text(),
             relevant_documents=relevant_documents
         )
     
-    def should_use_context(self, context: ConversationContext) -> bool:
+    @staticmethod
+    def should_use_context(context: ConversationContext) -> bool:
         """Business logic to determine if context should be used in response generation."""
         # Use context if we have relevant documents and the query is substantial
         return (context.has_relevant_context() and 
@@ -44,7 +47,8 @@ class ConversationService:
             
         return voice_preference
     
-    def _is_valid_voice_setting(self, voice: str) -> bool:
+    @staticmethod
+    def _is_valid_voice_setting(voice: str) -> bool:
         """Validate voice setting format."""
         # Simple validation - could be expanded with more business rules
         return bool(voice and "-" in voice and len(voice) > 5)

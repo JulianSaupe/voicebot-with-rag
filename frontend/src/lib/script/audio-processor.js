@@ -1,4 +1,4 @@
-// AudioWorklet processor for capturing raw PCM audio data
+// @ts-nocheck
 class AudioProcessor extends AudioWorkletProcessor {
     constructor() {
         super();

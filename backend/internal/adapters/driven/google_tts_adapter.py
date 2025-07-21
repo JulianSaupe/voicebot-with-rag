@@ -41,10 +41,12 @@ class GoogleTTSAdapter(TTSPort):
             raise RuntimeError(f"TTS synthesis failed: {str(e)}")
     
     async def synthesize_speech_stream(self, text_stream: AsyncGenerator[str, None], 
-                                     voice: str) -> AsyncGenerator[bytes, None]:
+                                     voice: str) -> AsyncGenerator[list, None]:
         """Synthesize speech from streaming text using Google Cloud TTS."""
         try:
             # Create streaming config with the specified voice
+            # Note: StreamingSynthesizeConfig doesn't support audio_config parameter
+            # Audio format is determined by the streaming synthesis service defaults
             streaming_config = texttospeech.StreamingSynthesizeConfig(
                 voice=texttospeech.VoiceSelectionParams(
                     name=voice,
@@ -75,8 +77,8 @@ class GoogleTTSAdapter(TTSPort):
                         if text_to_synthesize:
                             try:
                                 async for audio_chunk in self._synthesize_text(text_to_synthesize, streaming_config):
-                                    # Convert numpy array to bytes
-                                    yield audio_chunk.tobytes()
+                                    # Convert numpy array to list of integers for JSON serialization
+                                    yield audio_chunk.astype(np.int16).tolist()
                                 
                                 # Remove the synthesized text from buffer
                                 sentence_buffer = sentence_buffer[len(text_to_synthesize):].lstrip()
@@ -91,7 +93,7 @@ class GoogleTTSAdapter(TTSPort):
                                         # If there's content after removing punctuation, synthesize it
                                         try:
                                             async for audio_chunk in self._synthesize_text(chunk_without_punctuation.strip(), streaming_config):
-                                                yield audio_chunk.tobytes()
+                                                yield audio_chunk.astype(np.int16).tolist()
                                         except Exception as e:
                                             print(f"❌ Error synthesizing punctuation continuation: {e}")
                                     else:
@@ -100,7 +102,7 @@ class GoogleTTSAdapter(TTSPort):
                                         try:
                                             # Use a very short pause or silence to continue the stream
                                             async for audio_chunk in self._synthesize_text(" ", streaming_config):
-                                                yield audio_chunk.tobytes()
+                                                yield audio_chunk.astype(np.int16).tolist()
                                         except Exception as e:
                                             print(f"❌ Error synthesizing punctuation continuation: {e}")
                                         
@@ -112,7 +114,7 @@ class GoogleTTSAdapter(TTSPort):
             if sentence_buffer.strip():
                 try:
                     async for audio_chunk in self._synthesize_text(sentence_buffer.strip(), streaming_config):
-                        yield audio_chunk.tobytes()
+                        yield audio_chunk.astype(np.int16).tolist()
                 except Exception as e:
                     print(f"❌ Error synthesizing final text: {e}")
                     
