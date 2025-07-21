@@ -1,3 +1,5 @@
+import time
+
 from fastapi import HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 import json
@@ -138,9 +140,12 @@ class VoicebotController:
                                             voice="de-DE-Chirp3-HD-Charon"
                                         )
 
-                                        # Stream audio chunks back via WebSocket
+                                        # Stream audio chunks back via WebSocket, including LLM response in first chunk
                                         chunk_count = 0
-                                        async for audio_chunk in audio_stream:
+                                        previous_text = None
+                                        response_id = int(time.time())
+                                        async for audio_chunk, text in audio_stream:
+                                            # print(f"Text chunk: {text}")
                                             if audio_chunk:
                                                 chunk_count += 1
                                                 audio_message = {
@@ -148,10 +153,16 @@ class VoicebotController:
                                                     "data": list(audio_chunk),
                                                     # Convert bytes to list for JSON serialization
                                                     "chunk_number": chunk_count,
-                                                    "status": "streaming"
+                                                    "status": "streaming",
+                                                    "id": response_id,
                                                 }
+
+                                                if text != previous_text:
+                                                    audio_message["llm_response"] = text
+
+                                                previous_text = text
+
                                                 await websocket.send_text(json.dumps(audio_message))
-                                                # print(f"🔊 Sent audio chunk {chunk_count} ({len(audio_chunk)} bytes)")
 
                                         # Send end of audio stream marker
                                         end_message = {

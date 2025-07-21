@@ -182,6 +182,17 @@ export class SpeechStreamingService {
     private async handleAudioChunk(data: any): Promise<void> {
         console.log(`🔊 Received audio chunk ${data.chunk_number} (${data.data.length} bytes)`);
 
+        // Extract and store LLM response if present (typically in first chunk)
+        if (data.llm_response) {
+            const event = new CustomEvent('llm-response', {
+                detail: {
+                    text: data.llm_response,
+                    id: data.id,
+                }
+            });
+            window.dispatchEvent(event);
+        }
+
         // Store audio chunk
         this.audioChunks.push(data.data);
 
@@ -204,7 +215,8 @@ export class SpeechStreamingService {
             detail: {
                 chunkNumber: data.chunk_number,
                 dataSize: data.data.length,
-                status: data.status
+                status: data.status,
+                llmResponse: data.llm_response || null
             }
         });
         window.dispatchEvent(event);

@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Any
 import numpy as np
 
 from backend.internal.ports.output.llm_port import LLMPort
@@ -59,7 +59,8 @@ class VoicebotService:
             voice_settings=voice_settings
         )
 
-    async def generate_streaming_voice_response(self, prompt: str, voice: str = None) -> AsyncGenerator[bytes, None]:
+    async def generate_streaming_voice_response(self, prompt: str, voice: str = None) -> AsyncGenerator[
+        tuple[Any, Any], None]:
         """Generate a streaming voice response from a text prompt."""
         # Prepare voice settings using domain logic
         voice_settings = self.conversation_service.prepare_response_settings(voice)
@@ -80,8 +81,8 @@ class VoicebotService:
         text_stream = self.llm.generate_response_stream(final_prompt)
 
         # Convert text stream to audio stream
-        async for audio_chunk in self.tts.synthesize_speech_stream(text_stream, voice_settings):
-            yield audio_chunk
+        async for audio_chunk, text in self.tts.synthesize_speech_stream(text_stream, voice_settings):
+            yield audio_chunk, text
 
     def _build_prompt_with_context(self, context) -> str:
         """Build the final prompt including context if appropriate."""

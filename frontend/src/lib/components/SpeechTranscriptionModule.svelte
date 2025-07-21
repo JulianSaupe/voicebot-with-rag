@@ -38,6 +38,33 @@
         ];
     }
 
+    function handleLLMResponse(event: CustomEvent) {
+        const {text, id} = event.detail;
+
+        // Check if message with this id already exists
+        const existingMessage = messages.find(msg => msg.id === id);
+
+        if (existingMessage) {
+            messages = messages.map(msg =>
+                msg.id === id
+                    ? {...msg, text: msg.text + " " + text}
+                    : msg
+            );
+        } else {
+            messages = [
+                ...messages,
+                {
+                    id: id,
+                    text,
+                    isUser: false,
+                    timestamp: new Date()
+                }
+            ];
+        }
+
+
+    }
+
     function handleTranscriptionError(event: CustomEvent) {
         error = event.detail.error;
         console.error('❌ Transcription error:', error);
@@ -61,6 +88,7 @@
             // Setup event listeners for transcription results (only in browser)
             window.addEventListener('transcription', handleTranscription);
             window.addEventListener('transcription-error', handleTranscriptionError);
+            window.addEventListener('llm-response', handleLLMResponse);
 
             // Initialize microphone access
             await speechService.initialize();
@@ -83,6 +111,7 @@
         if (browser) {
             window.removeEventListener('transcription', handleTranscription);
             window.removeEventListener('transcription-error', handleTranscriptionError);
+            window.removeEventListener('llm-response', handleLLMResponse);
 
             if (speechService) {
                 speechService.disconnect();

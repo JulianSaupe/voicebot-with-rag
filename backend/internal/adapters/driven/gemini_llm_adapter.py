@@ -36,7 +36,7 @@ class GeminiLLMAdapter(LLMPort):
             
             for chunk in stream:
                 if chunk.text:
-                    print(chunk.text)
+                    # print(chunk.text)
                     yield chunk.text
                     
         except Exception as e:
