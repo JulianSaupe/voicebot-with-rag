@@ -151,7 +151,6 @@ class VoicebotController:
                                                 audio_message = {
                                                     "type": "audio",
                                                     "data": list(audio_chunk),
-                                                    # Convert bytes to list for JSON serialization
                                                     "chunk_number": chunk_count,
                                                     "status": "streaming",
                                                     "id": response_id,
@@ -233,7 +232,7 @@ class VoicebotController:
 
                             # Stream audio chunks back via WebSocket
                             chunk_count = 0
-                            async for audio_chunk in audio_stream:
+                            async for audio_chunk, _ in audio_stream:
                                 if audio_chunk:
                                     chunk_count += 1
                                     audio_message = {

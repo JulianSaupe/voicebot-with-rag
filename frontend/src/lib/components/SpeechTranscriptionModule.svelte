@@ -40,8 +40,6 @@
 
     function handleLLMResponse(event: CustomEvent) {
         const {text, id} = event.detail;
-
-        // Check if message with this id already exists
         const existingMessage = messages.find(msg => msg.id === id);
 
         if (existingMessage) {
