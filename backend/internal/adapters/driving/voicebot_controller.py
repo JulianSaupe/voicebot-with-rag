@@ -50,35 +50,6 @@ class VoicebotController:
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def get_text_response(self, prompt: str = Query(..., description="The prompt to generate response for"),
-                                voice: str = Query("de-DE-Chirp3-HD-Charon", description="The voice to use for TTS")):
-        """
-        Get text response for a given prompt (non-streaming).
-        
-        Args:
-            prompt: Input prompt for the voicebot
-            voice: Voice settings for TTS
-            
-        Returns:
-            Dictionary with text response
-        """
-        try:
-            # Generate voice response using the voicebot service
-            response = await self.voicebot_service.generate_voice_response(prompt, voice)
-
-            return {
-                "text": response.text_content,
-                "voice_settings": response.voice_settings,
-                "content_length": response.get_content_length(),
-                "status": "success"
-            }
-
-        except Exception as e:
-            print(f"❌ Error in text response generation: {e}")
-            import traceback
-            traceback.print_exc()
-            raise HTTPException(status_code=500, detail=str(e))
-
     async def transcribe_audio_websocket(self, websocket: WebSocket):
         """
         Handle WebSocket connection for real-time audio transcription with VAD.
@@ -269,6 +240,115 @@ class VoicebotController:
             print("🔌 WebSocket disconnected")
         except Exception as e:
             print(f"❌ Error in WebSocket audio transcription: {e}")
+            import traceback
+            traceback.print_exc()
+
+            # Try to send error message if connection is still open
+            try:
+                error_result = {
+                    "error": str(e),
+                    "status": "error"
+                }
+                await websocket.send_text(json.dumps(error_result))
+            except:
+                pass  # Connection might be closed
+
+    async def text_input_websocket(self, websocket: WebSocket):
+        """
+        Handle WebSocket connection for text input with audio response streaming.
+        
+        Args:
+            websocket: WebSocket connection
+        """
+        await websocket.accept()
+        print("🔌 WebSocket connection established for text input with audio response")
+
+        try:
+            while True:
+                try:
+                    # Receive JSON message from WebSocket
+                    message = await websocket.receive_text()
+                    data = json.loads(message)
+
+                    if data['type'] == 'text_input':
+                        text_input = data.get('text', '').strip()
+                        voice = data.get('voice', 'de-DE-Chirp3-HD-Charon')
+
+                        if not text_input:
+                            error_message = {
+                                "type": "audio_error",
+                                "error": "Empty text input received",
+                                "status": "error"
+                            }
+                            await websocket.send_text(json.dumps(error_message))
+                            continue
+
+                        print(f"🤖 Processing text input through LLM: {text_input}")
+
+                        try:
+                            # Generate streaming audio response using the voicebot service
+                            audio_stream = self.voicebot_service.generate_streaming_voice_response(
+                                text_input,
+                                voice=voice
+                            )
+
+                            # Stream audio chunks back via WebSocket, including LLM response in first chunk
+                            chunk_count = 0
+                            previous_text = None
+                            response_id = int(time.time())
+                            async for audio_chunk, text in audio_stream:
+                                if audio_chunk:
+                                    chunk_count += 1
+                                    audio_message = {
+                                        "type": "audio",
+                                        "data": list(audio_chunk),
+                                        "chunk_number": chunk_count,
+                                        "status": "streaming",
+                                        "id": response_id,
+                                    }
+
+                                    if text != previous_text:
+                                        audio_message["llm_response"] = text
+
+                                    previous_text = text
+
+                                    await websocket.send_text(json.dumps(audio_message))
+
+                            # Send end of audio stream marker
+                            end_message = {
+                                "type": "audio_end",
+                                "total_chunks": chunk_count,
+                                "status": "complete"
+                            }
+                            await websocket.send_text(json.dumps(end_message))
+                            print(f"🔊 Audio streaming complete - sent {chunk_count} chunks")
+
+                        except Exception as llm_error:
+                            print(f"❌ Error in LLM processing or audio generation: {llm_error}")
+                            import traceback
+                            traceback.print_exc()
+
+                            error_message = {
+                                "type": "audio_error",
+                                "error": f"Failed to generate audio response: {str(llm_error)}",
+                                "status": "error"
+                            }
+                            await websocket.send_text(json.dumps(error_message))
+
+                except WebSocketDisconnect:
+                    print("🔌 WebSocket disconnected during text processing")
+                    break
+                except json.JSONDecodeError as e:
+                    print(f"❌ Invalid JSON received: {e}")
+                    continue
+                except Exception as e:
+                    print(f"❌ Error processing text input: {e}")
+                    continue
+
+        except WebSocketDisconnect:
+            print("🔌 WebSocket disconnected")
+        except Exception as e:
+            print(f"❌ Error in WebSocket text input processing: {e}")
             import traceback
             traceback.print_exc()
 

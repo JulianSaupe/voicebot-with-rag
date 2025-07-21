@@ -1,5 +1,6 @@
 // Audio service for handling all audio-related functionality
 import {API_CONFIG} from './config';
+import {SpeechStreamingService} from "$lib/script/speech_streaming_service";
 
 // Types
 export interface AudioState {
@@ -255,7 +256,7 @@ export async function processAudioStream(
     }
 }
 
-// Submit prompt to API and process audio response
+// Submit prompt to API and process audio response via WebSocket
 export async function submitPrompt(
     userPrompt: string,
     state: AudioState,
@@ -276,34 +277,134 @@ export async function submitPrompt(
         // Clear any previous error messages when starting new operation
         updateSubtitle(`Processing: "${userPrompt}"`);
 
-        // Connect to the API endpoint using the configured URL
-        const response = await fetch(API_CONFIG.getAudioUrl(userPrompt, voice));
+        // Connect to the WebSocket endpoint
+        const websocket = new WebSocket(API_CONFIG.getTextWebSocketUrl());
+        const speechStreamingService = new SpeechStreamingService();
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        await new Promise<void>((resolve, reject) => {
+            let audioQueue: Int16Array[] = [];
+            let isProcessingQueue = false;
+            let totalAudioDuration = 0;
+            let audioLevelCancelled = false;
+            const sampleRate = 24000; // Default sample rate from backend
 
-        // Get the headers for audio configuration
-        const sampleRate = parseInt(response.headers.get('Sample-Rate') || '24000');
+            websocket.onopen = () => {
+                console.log('WebSocket connected for text input');
 
-        // Update UI
-        updateSubtitle(`AI is responding to: "${userPrompt}"`);
-        updateState({isListening: true});
+                // Send text input message
+                const message = {
+                    type: 'text_input',
+                    text: userPrompt,
+                    voice: voice || 'de-DE-Chirp3-HD-Charon'
+                };
 
-        // Process the audio stream
-        await processAudioStream(
-            response,
-            sampleRate,
-            state,
-            updateState,
-            (errorMessage) => updateSubtitle(errorMessage),
-            updateSubtitle
-        );
+                websocket.send(JSON.stringify(message));
+                updateSubtitle(`AI is responding to: "${userPrompt}"`);
+                updateState({isListening: true});
+            };
+
+            websocket.onmessage = async (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    speechStreamingService.handleWebSocketMessage(data);
+                } catch (error) {
+                    console.error('❌ Error parsing WebSocket message:', error);
+                }
+            };
+
+            websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                reject(new Error('WebSocket connection error'));
+            };
+
+            websocket.onclose = (event) => {
+                if (event.code !== 1000) { // Not a normal closure
+                    console.error('WebSocket closed unexpectedly:', event.code, event.reason);
+                    reject(new Error(`WebSocket closed unexpectedly: ${event.reason}`));
+                }
+            };
+
+            // Audio processing queue function (similar to original processAudioStream)
+            async function processAudioQueue() {
+                if (isProcessingQueue || audioQueue.length === 0) return;
+
+                isProcessingQueue = true;
+
+                try {
+                    while (audioQueue.length > 0) {
+                        const audioChunk = audioQueue.shift()!;
+
+                        // Convert Int16Array to Float32Array for Web Audio API
+                        const floatArray = new Float32Array(audioChunk.length);
+                        for (let i = 0; i < audioChunk.length; i++) {
+                            floatArray[i] = audioChunk[i] / 32768.0; // Convert from int16 to float32
+                        }
+
+                        // Create audio buffer
+                        const audioBuffer = state.audioContext!.createBuffer(1, floatArray.length, sampleRate);
+                        audioBuffer.copyToChannel(floatArray, 0);
+
+                        // Create and configure audio source
+                        const source = state.audioContext!.createBufferSource();
+                        const gainNode = state.audioContext!.createGain();
+                        const analyser = state.audioContext!.createAnalyser();
+
+                        source.buffer = audioBuffer;
+                        source.connect(gainNode);
+                        gainNode.connect(analyser);
+                        analyser.connect(state.audioContext!.destination);
+
+                        // Configure analyser for audio level visualization
+                        analyser.fftSize = 256;
+                        const bufferLength = analyser.frequencyBinCount;
+                        const dataArray = new Uint8Array(bufferLength);
+
+                        // Start playing audio
+                        const startTime = state.audioContext!.currentTime + totalAudioDuration;
+                        source.start(startTime);
+
+                        totalAudioDuration += audioBuffer.duration;
+
+                        // Update audio level visualization
+                        if (!audioLevelCancelled) {
+                            const updateAudioLevel = () => {
+                                if (audioLevelCancelled) return;
+
+                                analyser.getByteFrequencyData(dataArray);
+                                let sum = 0;
+                                for (let i = 0; i < bufferLength; i++) {
+                                    sum += dataArray[i];
+                                }
+                                const average = sum / bufferLength;
+                                const normalizedLevel = Math.min(average / 128.0, 1.0);
+
+                                updateState({audioLevel: normalizedLevel});
+
+                                if (state.audioContext!.currentTime < startTime + audioBuffer.duration) {
+                                    requestAnimationFrame(updateAudioLevel);
+                                }
+                            };
+
+                            if (state.audioContext!.currentTime >= startTime - 0.1) {
+                                updateAudioLevel();
+                            } else {
+                                setTimeout(() => updateAudioLevel(), (startTime - state.audioContext!.currentTime - 0.1) * 1000);
+                            }
+                        }
+
+                        // Small delay between processing chunks
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                    }
+                } finally {
+                    isProcessingQueue = false;
+                }
+            }
+        });
 
         console.log('submitPrompt completed successfully');
 
     } catch (error: Error | any) {
-        console.error('Error fetching audio:', error);
+        console.error('Error in WebSocket audio processing:', error);
         updateSubtitle(`Error: ${error.message}`);
         updateState({isListening: false});
 

@@ -36,21 +36,19 @@ def create_app() -> FastAPI:
         """WebSocket endpoint for real-time audio transcription."""
         await voicebot_controller.transcribe_audio_websocket(websocket)
 
-    @app.get("/api/audio")
-    async def get_audio_stream(
-            prompt: str = Query(..., description="The prompt to generate audio for"),
-            voice: str = Query("de-DE-Chirp3-HD-Charon", description="The voice to use for TTS")
-    ):
-        """Stream audio response for a given prompt."""
-        return await voicebot_controller.get_audio_stream(prompt, voice)
+    @app.websocket("/ws/text")
+    async def websocket_text_input(websocket: WebSocket):
+        """WebSocket endpoint for text input with audio response streaming."""
+        await voicebot_controller.text_input_websocket(websocket)
 
-    @app.get("/api/text")
-    async def get_text_response(
-            prompt: str = Query(..., description="The prompt to generate response for"),
-            voice: str = Query("de-DE-Chirp3-HD-Charon", description="The voice to use for TTS")
-    ):
-        """Get text response for a given prompt (non-streaming)."""
-        return await voicebot_controller.get_text_response(prompt, voice)
+    # Legacy endpoint - deprecated in favor of WebSocket /ws/text
+    # @app.get("/api/audio")
+    # async def get_audio_stream(
+    #         prompt: str = Query(..., description="The prompt to generate audio for"),
+    #         voice: str = Query("de-DE-Chirp3-HD-Charon", description="The voice to use for TTS")
+    # ):
+    #     """Stream audio response for a given prompt."""
+    #     return await voicebot_controller.get_audio_stream(prompt, voice)
 
     return app
 

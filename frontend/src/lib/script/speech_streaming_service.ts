@@ -132,7 +132,7 @@ export class SpeechStreamingService {
         }
     }
 
-    private handleWebSocketMessage(data: any): void {
+    public handleWebSocketMessage(data: any): void {
         switch (data.type) {
             case 'transcription':
                 this.handleTranscriptionMessage(data);
