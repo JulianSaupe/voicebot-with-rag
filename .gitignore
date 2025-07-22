@@ -1,6 +1,7 @@
 .idea
 .venv
 credentials.json
+.junie
 
 test-results
 node_modules
