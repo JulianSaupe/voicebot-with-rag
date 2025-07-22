@@ -1,10 +1,10 @@
 <script lang="ts">
     import {onMount, onDestroy} from 'svelte';
     import {browser} from '$app/environment';
-    import {SpeechStreamingService} from '$lib/script/speech_streaming_service';
+    import {ServiceManager} from '$lib/script/ServiceManager';
     import ChatContainer from "$lib/components/ChatContainer.svelte";
 
-    let speechService: SpeechStreamingService;
+    let serviceManager: ServiceManager;
     let isConnected = false;
     let isRecording = false;
     let transcription: string = '';
@@ -13,7 +13,7 @@
     let status = 'Initializing...';
 
     // Chat state
-    let messages: Array<{
+    export let messages: Array<{
         id: string;
         text: string;
         isUser: boolean;
@@ -59,8 +59,6 @@
                 }
             ];
         }
-
-
     }
 
     function handleTranscriptionError(event: CustomEvent) {
@@ -76,56 +74,55 @@
         }
 
         try {
-            // Initialize speech service with your backend URL
-            const wsUrl = import.meta.env.VITE_API_BASE_URL
-                ? `ws://${new URL(import.meta.env.VITE_API_BASE_URL).host}/ws/speech`
-                : 'ws://localhost:8000/ws/speech';
+            // Initialize service manager with separate endpoints
+            const baseHost = import.meta.env.VITE_API_BASE_URL
+                ? new URL(import.meta.env.VITE_API_BASE_URL).host
+                : 'localhost:8000';
 
-            speechService = new SpeechStreamingService(wsUrl);
+            const speechWsUrl = `ws://${baseHost}/ws/speech`;
+            const textWsUrl = `ws://${baseHost}/ws/text`;
+
+            serviceManager = new ServiceManager({ speechWsUrl, textWsUrl });
 
             // Setup event listeners for transcription results (only in browser)
-            window.addEventListener('transcription', handleTranscription);
-            window.addEventListener('transcription-error', handleTranscriptionError);
-            window.addEventListener('llm-response', handleLLMResponse);
+            window.addEventListener('transcription', handleTranscription as EventListener);
+            window.addEventListener('transcription-error', handleTranscriptionError as EventListener);
+            window.addEventListener('llm-response', handleLLMResponse as EventListener);
 
-            // Initialize microphone access
-            await speechService.initialize();
-            status = 'Microphone ready, connecting to server...';
-
-            // Connect to WebSocket
-            await speechService.connect();
-            isConnected = true;
+            // Initialize service manager (connects WebSocket and initializes microphone)
+            await serviceManager.initialize();
+            isConnected = serviceManager.connected;
             status = 'Connected and ready to record';
 
         } catch (err) {
             error = `Initialization failed: ${err}`;
             status = 'Error during initialization';
-            console.error('❌ Speech service initialization failed:', err);
+            console.error('❌ Service manager initialization failed:', err);
         }
     });
 
     onDestroy(() => {
         // Only cleanup if we're in the browser
         if (browser) {
-            window.removeEventListener('transcription', handleTranscription);
-            window.removeEventListener('transcription-error', handleTranscriptionError);
-            window.removeEventListener('llm-response', handleLLMResponse);
+            window.removeEventListener('transcription', handleTranscription as EventListener);
+            window.removeEventListener('transcription-error', handleTranscriptionError as EventListener);
+            window.removeEventListener('llm-response', handleLLMResponse as EventListener);
 
-            if (speechService) {
-                speechService.disconnect();
+            if (serviceManager) {
+                serviceManager.disconnect();
             }
         }
     });
 
     function toggleRecording() {
         // Guard against non-browser environment
-        if (!browser || !speechService || !isConnected) return;
+        if (!browser || !serviceManager || !isConnected) return;
 
         if (isRecording) {
-            speechService.stopRecording();
+            serviceManager.stopRecording();
             status = 'Recording stopped';
         } else {
-            speechService.startRecording();
+            serviceManager.startRecording();
             status = 'Recording... Speak now!';
             transcription = '';
             confidence = 0;
@@ -137,8 +134,6 @@
 </script>
 
 <div class="speech-streaming-container">
-    <ChatContainer {messages}/>
-
     <div class="status-section">
         <p class="status">Status: <span class:connected={isConnected} class:error={error}>{status}</span></p>
 
@@ -148,6 +143,8 @@
             </div>
         {/if}
     </div>
+
+    <ChatContainer {messages}/>
 
     <div class="controls">
         <button
@@ -205,7 +202,6 @@
 
     .controls {
         text-align: center;
-        margin-bottom: 1rem;
     }
 
     .record-button {

@@ -1,15 +1,14 @@
 <script lang="ts">
-    import {onMount} from 'svelte';
+    import {onMount, onDestroy} from 'svelte';
+    import {browser} from '$app/environment';
     import ChatContainer from '$lib/components/ChatContainer.svelte';
-    import SubtitleDisplay from '$lib/components/SubtitleDisplay.svelte';
-    import * as AudioService from '$lib/script/audioService';
-    import * as SpeechService from '$lib/script/speechService';
+    import {ServiceManager} from '$lib/script/ServiceManager';
     import SpeechTranscriptionModule from "$lib/components/SpeechTranscriptionModule.svelte";
 
     // UI state
-    let currentSubtitle = '';
     let userPrompt = '';
     let selectedVoice = 'de-DE-Chirp3-HD-Charon';
+    let isProcessing = false;
 
     // Chat state
     let messages: Array<{
@@ -19,10 +18,8 @@
         timestamp: Date;
     }> = [];
 
-    // Speech state
-    let speechState = SpeechService.createSpeechState();
-    $: isMicrophoneEnabled = speechState.isMicrophoneEnabled;
-    $: isStreaming = speechState.isStreaming;
+    // Service manager for text input
+    let textServiceManager: ServiceManager;
 
     // Available voices
     const voices = [
@@ -33,37 +30,62 @@
         'de-DE-Chirp3-HD-Fenrir'
     ];
 
-    // Audio state
-    let audioState = AudioService.createAudioState();
-    $: isProcessing = audioState.isProcessing;
 
-    // Update audio state helper function
-    const updateAudioState = (updates: Partial<AudioService.AudioState>) => {
-        // Create a new object to ensure reactivity
-        audioState = {...audioState, ...updates};
-    };
+    // Event handlers for LLM responses
+    function handleLLMResponse(event: CustomEvent) {
+        const {text, isComplete} = event.detail;
 
-    // Update subtitle helper function
-    const updateSubtitle = (text: string) => {
-        currentSubtitle = text;
-    };
+        // Add complete responses to chat
+        if (isComplete && text) {
+            addMessage(text, false);
+        }
+    }
 
-    onMount(() => {
-        // Initialize AudioContext
-        audioState.audioContext = AudioService.initAudioContext();
-        updateAudioState(audioState);
+    function handleTextInputError(event: CustomEvent) {
+        const {error} = event.detail;
+        isProcessing = false;
+    }
 
-        // Initialize voicebot as enabled
-        updateSubtitle('Voicebot ready. Enter your question...');
+    onMount(async () => {
+        if (!browser) return;
 
-        return () => {
-            AudioService.stopAudio(audioState);
-        };
+        try {
+            // Initialize service manager for text input with separate endpoints
+            const baseHost = import.meta.env.VITE_API_BASE_URL
+                ? new URL(import.meta.env.VITE_API_BASE_URL).host
+                : 'localhost:8000';
+
+            const speechWsUrl = `ws://${baseHost}/ws/speech`;
+            const textWsUrl = `ws://${baseHost}/ws/text`;
+
+            textServiceManager = new ServiceManager({speechWsUrl, textWsUrl});
+
+            // Setup event listeners
+            window.addEventListener('llm-response', handleLLMResponse as EventListener);
+            window.addEventListener('text-input-error', handleTextInputError as EventListener);
+
+            // Initialize service manager
+            await textServiceManager.initialize();
+
+        } catch (err) {
+            console.error('❌ Text service initialization failed:', err);
+        }
+    });
+
+    onDestroy(() => {
+        if (browser) {
+            window.removeEventListener('llm-response', handleLLMResponse as EventListener);
+            window.removeEventListener('text-input-error', handleTextInputError as EventListener);
+
+            if (textServiceManager) {
+                textServiceManager.disconnect();
+            }
+        }
     });
 
     const addMessage = (text: string, isUser: boolean) => {
         const newMessage = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            id: Math.random().toString(),
             text,
             isUser,
             timestamp: new Date()
@@ -72,29 +94,23 @@
     };
 
     const submitPrompt = async () => {
-        if (!userPrompt.trim() || isProcessing) return;
+        if (!userPrompt.trim() || isProcessing || !textServiceManager?.connected) return;
+
+        isProcessing = true;
 
         // Add user message to chat
         addMessage(userPrompt.trim(), true);
         const currentPrompt = userPrompt.trim();
         userPrompt = ''; // Clear input immediately
 
-        // Custom subtitle update function that also adds LLM response to chat
-        const updateSubtitleAndChat = (text: string) => {
-            updateSubtitle(text);
-            // Only add to chat if it's a complete response (not intermediate states)
-            if (text && !text.includes('Processing') && !text.includes('ready')) {
-                addMessage(text, false);
-            }
-        };
-
-        await AudioService.submitPrompt(
-            currentPrompt,
-            audioState,
-            updateAudioState,
-            updateSubtitleAndChat,
-            selectedVoice
-        );
+        try {
+            await textServiceManager.submitText(currentPrompt, {
+                voice: selectedVoice
+            });
+        } catch (error) {
+            console.error('❌ Error submitting text:', error);
+            isProcessing = false;
+        }
     };
 
     // Handle Enter key in the input field
@@ -126,7 +142,7 @@
     </div>
 
     <div class="chatbot-container">
-        <SpeechTranscriptionModule/>
+        <SpeechTranscriptionModule bind:messages={messages}/>
 
         <div class="controls">
             <div class="prompt-container">
@@ -136,20 +152,18 @@
                         placeholder="Ask a question or use microphone..."
                         class="prompt-input"
                         on:keydown={handleKeyDown}
-                        disabled={audioState.isProcessing}
+                        disabled={isProcessing}
                 />
                 <button
                         class="submit-button"
                         on:click={submitPrompt}
-                        disabled={!userPrompt.trim() || audioState.isProcessing}
+                        disabled={!userPrompt.trim() || isProcessing}
                 >
-                    {audioState.isProcessing ? 'Processing...' : 'Ask'}
+                    {isProcessing ? 'Processing...' : 'Ask'}
                 </button>
             </div>
         </div>
     </div>
-
-    <SubtitleDisplay {currentSubtitle}/>
 </main>
 
 <style>

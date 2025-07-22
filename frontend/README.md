@@ -6,7 +6,6 @@ A modern, futuristic chatbot frontend built with SvelteKit featuring a dark them
 
 - **🎨 Modern Dark Theme**: Sleek gradient backgrounds with cyan/teal accent colors
 - **🎤 Animated Speech Bubble**: Dynamic speech bubble that changes shape based on audio output levels
-- **📝 Subtitle Display**: Smooth subtitle animations with backdrop blur effects
 - **⚡ Toggle Control**: Futuristic toggle switch to enable/disable the voicebot
 - **📱 Responsive Design**: Optimized for desktop and mobile devices
 - **✨ Rich Animations**: Particles, glowing effects, and smooth transitions
@@ -20,13 +19,6 @@ The main visual centerpiece featuring:
 - Floating particles around the bubble when active
 - Different visual states (inactive, active, listening)
 - Smooth glow effects and pulsing animations
-
-### SubtitleDisplay.svelte
-Displays conversation text with:
-- Smooth slide-in/slide-out animations
-- Backdrop blur for modern glass effect
-- Animated accent line
-- Fixed positioning at bottom of screen
 
 ### ToggleSwitch.svelte
 A custom toggle component with:
@@ -81,7 +73,6 @@ Currently uses mock audio levels for demonstration. To integrate with real audio
 
 1. Replace the `audioLevel` simulation in `+page.svelte`
 2. Connect to your audio processing pipeline
-3. Update the `currentSubtitle` with real transcription data
 
 ### Speech Bubble Behavior
 Customize the speech bubble animation by modifying:
@@ -97,7 +88,6 @@ src/
 │   └── +page.svelte          # Main page
 ├── lib/
 │   ├── SpeechBubble.svelte    # Animated speech bubble
-│   ├── SubtitleDisplay.svelte # Subtitle component  
 │   └── ToggleSwitch.svelte    # Toggle control
 └── app.html                   # Base HTML template
 ```

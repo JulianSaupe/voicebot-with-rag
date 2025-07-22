@@ -17,39 +17,6 @@ class VoicebotController:
     def __init__(self, voicebot_service: VoicebotService):
         self.voicebot_service = voicebot_service
 
-    async def get_audio_stream(self, prompt: str = Query(..., description="The prompt to generate audio for"),
-                               voice: str = Query("de-DE-Chirp3-HD-Charon", description="The voice to use for TTS")):
-        """
-        Stream audio response for a given prompt.
-        
-        Args:
-            prompt: Input prompt for the voicebot
-            voice: Voice settings for TTS
-            
-        Returns:
-            StreamingResponse with audio data
-        """
-        try:
-            # Generate streaming audio response using the voicebot service
-            audio_stream = self.voicebot_service.generate_streaming_voice_response(prompt, voice)
-
-            return StreamingResponse(
-                audio_stream,
-                media_type="audio/pcm",
-                headers={
-                    "Content-Disposition": "attachment; filename=response.pcm",
-                    "Sample-Rate": "24000",
-                    "Channels": "1",
-                    "Sample-Format": "int16"
-                }
-            )
-
-        except Exception as e:
-            print(f"❌ Error in audio stream generation: {e}")
-            import traceback
-            traceback.print_exc()
-            raise HTTPException(status_code=500, detail=str(e))
-
     async def transcribe_audio_websocket(self, websocket: WebSocket):
         """
         Handle WebSocket connection for real-time audio transcription with VAD.
@@ -270,7 +237,8 @@ class VoicebotController:
                     message = await websocket.receive_text()
                     data = json.loads(message)
 
-                    if data['type'] == 'text_input':
+                    if data['type'] == 'text_prompt':
+                        data = data['data']
                         text_input = data.get('text', '').strip()
                         voice = data.get('voice', 'de-DE-Chirp3-HD-Charon')
 
@@ -300,14 +268,15 @@ class VoicebotController:
                                 if audio_chunk:
                                     chunk_count += 1
                                     audio_message = {
-                                        "type": "audio",
-                                        "data": list(audio_chunk),
+                                        "type": "audio_chunk",
+                                        "chunk": list(audio_chunk),
                                         "chunk_number": chunk_count,
                                         "status": "streaming",
                                         "id": response_id,
                                     }
 
                                     if text != previous_text:
+                                        print(f"Text chunk: {text}")
                                         audio_message["llm_response"] = text
 
                                     previous_text = text

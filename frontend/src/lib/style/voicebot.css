@@ -103,9 +103,8 @@
 
 .prompt-container {
     display: flex;
-    width: 100%;
+    width: 900px;
     max-width: 900px;
-    margin-top: 1rem;
     gap: 0.5rem;
 }
 
