@@ -1,14 +1,11 @@
 import time
 
-from fastapi import HTTPException, Query, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
+from fastapi import WebSocket, WebSocketDisconnect
 import json
-import asyncio
 import numpy as np
-from typing import AsyncGenerator, Optional
 
 from backend.internal.application.voicebot_service import VoicebotService
-from backend.internal.domain.services.voice_activity_detector_service import VoiceActivityDetector
+from backend.internal.application.voice_activity_detector_service import VoiceActivityDetector
 
 
 class VoicebotController:

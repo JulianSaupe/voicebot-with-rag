@@ -46,6 +46,10 @@
         isProcessing = false;
     }
 
+    function handleAudioPlaybackComplete(event: CustomEvent) {
+        isProcessing = false;
+    }
+
     onMount(async () => {
         if (!browser) return;
 
@@ -63,6 +67,7 @@
             // Setup event listeners
             window.addEventListener('llm-response', handleLLMResponse as EventListener);
             window.addEventListener('text-input-error', handleTextInputError as EventListener);
+            window.addEventListener('audio-playback-complete', handleAudioPlaybackComplete as EventListener);
 
             // Initialize service manager
             await textServiceManager.initialize();
@@ -76,6 +81,7 @@
         if (browser) {
             window.removeEventListener('llm-response', handleLLMResponse as EventListener);
             window.removeEventListener('text-input-error', handleTextInputError as EventListener);
+            window.removeEventListener('audio-playback-complete', handleAudioPlaybackComplete as EventListener);
 
             if (textServiceManager) {
                 textServiceManager.disconnect();

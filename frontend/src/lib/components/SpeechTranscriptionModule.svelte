@@ -169,7 +169,7 @@
     .speech-streaming-container {
         max-width: 100%;
         margin: 0 auto;
-        padding: 2rem;
+        padding: 1rem;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 

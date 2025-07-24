@@ -31,23 +31,23 @@ class PostgresVectorDB(VectorDatabase):
                             CREATE EXTENSION IF NOT EXISTS vector;
                             CREATE TABLE IF NOT EXISTS documents
                             (
-                                id        TEXT PRIMARY KEY,
+                                id        SERIAL PRIMARY KEY,
                                 content   TEXT,
                                 embedding VECTOR(768)
                             );
                             """)
 
-    def insert_document(self, doc_id: str, text: str) -> None:
+    def insert_document(self, text: str) -> None:
         """
         Inserts or updates a document with its embedding.
         """
         embeddings = self.embedding_calculator.calculate_embeddings(text)
         embedding_str = ','.join(map(str, embeddings))
         self.cursor.execute("""
-                            INSERT INTO documents (id, content, embedding)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (id) DO NOTHING;
-                            """, (doc_id, text, f'[{embedding_str}]'))
+                            INSERT INTO documents (content, embedding)
+                            VALUES (%s, %s)
+                            ON CONFLICT DO NOTHING;
+                            """, (text, f'[{embedding_str}]'))
 
     def search(self, query: np.ndarray, top_k: int = 10) -> List[str]:
         """
@@ -56,7 +56,7 @@ class PostgresVectorDB(VectorDatabase):
         embedding_str = ','.join(map(str, query))
 
         self.cursor.execute(f"""
-            SELECT id, content, embedding <-> %s AS similarity
+            SELECT content, embedding <-> %s AS similarity
             FROM documents
             WHERE embedding <-> %s >= %s
             ORDER BY embedding <-> %s
@@ -66,7 +66,7 @@ class PostgresVectorDB(VectorDatabase):
         results = self.cursor.fetchall()
         texts = []
 
-        for _, text, _ in results:
+        for text, _ in results:
             texts.append(text)
 
         return texts

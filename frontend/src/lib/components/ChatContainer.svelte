@@ -39,7 +39,7 @@
     .chat-container {
         width: 900px;
         max-width: 900px;
-        height: 400px;
+        height: 550px;
         overflow-y: auto;
         padding: 1rem;
         background: rgba(20, 20, 20, 0.6);

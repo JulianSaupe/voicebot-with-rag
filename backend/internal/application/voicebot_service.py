@@ -7,7 +7,7 @@ from backend.internal.ports.output.speech_recognition_port import SpeechRecognit
 from backend.internal.ports.output.tts_port import TTSPort
 from backend.internal.domain.models.audio_transcription import AudioTranscription
 from backend.internal.domain.models.voice_response import VoiceResponse
-from backend.internal.domain.services.conversation_service import ConversationService
+from backend.internal.application.conversation_service import ConversationService
 
 
 class VoicebotService:
@@ -87,8 +87,12 @@ class VoicebotService:
     def _build_prompt_with_context(self, context) -> str:
         """Build the final prompt including context if appropriate."""
         base_prompt = (
-            "Du bist ein KI Agent, welcher Antworten auf Fragen von den Nutzer geben kann. "
-            "Rege den Nutzer am Ende deiner Antwort an weitere Fragen zu stellen und mache dazu einige Vorschläge. "
+            "Du bist ein KI Agent, welcher ausführliche Antworten auf Fragen von Nutzern geben kann."
+            "Unter 'Frage' ist die Frage des nutzers gegeben."
+            "Unter 'Kontext' ist weiterer Kontext bereitgestellt, welcher bei der Beantwortung der Frage hilfreich sein kann."
+            "Nutze den Kontext, wenn möglich um die Frage zu beantworten."
+            "Ist der Kontext nicht hilfreich, ignoriere ihn."
+            # "Rege den Nutzer am Ende deiner Antwort an weitere Fragen zu stellen und mache dazu einige Vorschläge. "
             "Gebe nur ganze Sätze wieder, welche mit Hilfe von TTS an den Benutzer ausgegeben werden."
         )
 

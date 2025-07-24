@@ -16,7 +16,7 @@ class VectorDatabase(ABC):
         """Create a table to store documents."""
 
     @abstractmethod
-    def insert_document(self, doc_id: str, text: str) -> None:
+    def insert_document(self, text: str) -> None:
         """Insert document into vector database."""
 
     @abstractmethod
