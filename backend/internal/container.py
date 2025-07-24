@@ -5,11 +5,10 @@ from backend.internal.adapters.driven.postgres_db import PostgresVectorDB
 from backend.internal.application.voicebot_service import VoicebotService
 from backend.internal.application.conversation_service import ConversationService
 from backend.internal.adapters.driven.gemini_llm_adapter import GeminiLLMAdapter
-from backend.internal.adapters.driven.google_speech_adapter import GoogleSpeechAdapter, CancellableGoogleSpeechAdapter
+from backend.internal.adapters.driven.google_speech_adapter import GoogleSpeechAdapter
 from backend.internal.adapters.driven.google_tts_adapter import GoogleTTSAdapter
 from backend.internal.adapters.driven.rag_adapter import RAGAdapter
 from backend.internal.adapters.driving.voicebot_controller import VoicebotController
-from backend.internal.domain.services.async_process_manager import AsyncProcessManager
 
 
 class Container:
@@ -29,25 +28,6 @@ class Container:
         if 'speech_recognition_adapter' not in self._instances:
             self._instances['speech_recognition_adapter'] = GoogleSpeechAdapter()
         return self._instances['speech_recognition_adapter']
-    
-    def get_cancellable_speech_recognition_adapter(self) -> CancellableGoogleSpeechAdapter:
-        """Get or create CancellableGoogleSpeechAdapter instance."""
-        if 'cancellable_speech_recognition_adapter' not in self._instances:
-            self._instances['cancellable_speech_recognition_adapter'] = CancellableGoogleSpeechAdapter()
-        return self._instances['cancellable_speech_recognition_adapter']
-    
-    @staticmethod
-    def create_cancellable_speech_adapter_with_token(cancellation_token) -> CancellableGoogleSpeechAdapter:
-        """Create a new CancellableGoogleSpeechAdapter instance with a specific cancellation token."""
-        adapter = CancellableGoogleSpeechAdapter()
-        adapter.set_cancellation_token(cancellation_token)
-        return adapter
-    
-    def get_async_process_manager(self) -> AsyncProcessManager:
-        """Get or create AsyncProcessManager instance."""
-        if 'async_process_manager' not in self._instances:
-            self._instances['async_process_manager'] = AsyncProcessManager()
-        return self._instances['async_process_manager']
     
     def get_llm_adapter(self) -> GeminiLLMAdapter:
         """Get or create GeminiLLMAdapter instance."""
@@ -87,9 +67,7 @@ class Container:
         """Get or create VoicebotController instance."""
         if 'voicebot_controller' not in self._instances:
             self._instances['voicebot_controller'] = VoicebotController(
-                voicebot_service=self.get_voicebot_service(),
-                process_manager=self.get_async_process_manager(),
-                container_instance=self
+                voicebot_service=self.get_voicebot_service()
             )
         return self._instances['voicebot_controller']
 

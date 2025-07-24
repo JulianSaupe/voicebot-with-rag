@@ -1,26 +1,18 @@
-import asyncio
-import json
 import time
-from concurrent.futures import ThreadPoolExecutor
-from typing import Dict
 
-import numpy as np
 from fastapi import WebSocket, WebSocketDisconnect
+import json
+import numpy as np
 
-from backend.internal.application.voice_activity_detector_service import VoiceActivityDetector
 from backend.internal.application.voicebot_service import VoicebotService
-from backend.internal.domain.services.async_process_manager import AsyncProcessManager, AsyncCancellationToken
+from backend.internal.application.voice_activity_detector_service import VoiceActivityDetector
 
 
 class VoicebotController:
     """Web controller for voicebot endpoints using hexagonal architecture."""
 
-    def __init__(self, voicebot_service: VoicebotService, process_manager: AsyncProcessManager, container_instance=None):
+    def __init__(self, voicebot_service: VoicebotService):
         self.voicebot_service = voicebot_service
-        self.process_manager = process_manager
-        self.container = container_instance  # Store container reference for creating cancellable adapters
-        self.executor = ThreadPoolExecutor(max_workers=4)
-        self.active_transcription_processes: Dict[str, str] = {}  # websocket_id -> process_id
 
     async def transcribe_audio_websocket(self, websocket: WebSocket):
         """
@@ -46,19 +38,7 @@ class VoicebotController:
                     message = await websocket.receive_text()
                     data = json.loads(message)
 
-                    if data['type'] == 'start_transcription':
-                        # Handle start transcription request
-                        await self._handle_start_transcription(websocket, data)
-                    
-                    elif data['type'] == 'stop_transcription':
-                        # Handle stop transcription request
-                        await self._handle_stop_transcription(websocket, data)
-                    
-                    elif data['type'] == 'stop_all_transcriptions':
-                        # Handle stop all transcriptions request
-                        await self._handle_stop_all_transcriptions(websocket, data)
-                    
-                    elif data['type'] == 'pcm':
+                    if data['type'] == 'pcm':
                         # Convert array back to numpy array for PCM data
                         pcm_data = np.array(data['data'], dtype=np.float32)
 
@@ -347,229 +327,3 @@ class VoicebotController:
                 await websocket.send_text(json.dumps(error_result))
             except:
                 pass  # Connection might be closed
-
-    async def _handle_start_transcription(self, websocket: WebSocket, data: dict):
-        """Handle start transcription request."""
-        try:
-            audio_data = data.get('audio_data')
-            language_code = data.get('language_code', 'de-DE')
-            metadata = data.get('metadata', {})
-            
-            if not audio_data:
-                await websocket.send_text(json.dumps({
-                    "type": "transcription_error",
-                    "error": "No audio data provided",
-                    "status": "error"
-                }))
-                return
-            
-            # Start a new process
-            process_id, cancellation_token = self.process_manager.start_process(
-                name="speech_transcription",
-                metadata={
-                    "language_code": language_code,
-                    "websocket_id": id(websocket),
-                    **metadata
-                }
-            )
-            
-            # Store the process ID for this WebSocket connection
-            websocket_id = str(id(websocket))
-            self.active_transcription_processes[websocket_id] = process_id
-            
-            # Emit transcription started event
-            await websocket.send_text(json.dumps({
-                "type": "transcription_started",
-                "process_id": process_id,
-                "status": "started"
-            }))
-            
-            # Run the transcription process in a separate thread
-            loop = asyncio.get_event_loop()
-            loop.run_in_executor(
-                self.executor,
-                self._run_transcription_process,
-                process_id,
-                cancellation_token,
-                audio_data,
-                language_code,
-                websocket
-            )
-            
-        except Exception as e:
-            print(f"❌ Error starting transcription: {e}")
-            await websocket.send_text(json.dumps({
-                "type": "transcription_error",
-                "error": f"Failed to start transcription: {str(e)}",
-                "status": "error"
-            }))
-
-    async def _handle_stop_transcription(self, websocket: WebSocket, data: dict):
-        """Handle stop transcription request."""
-        try:
-            process_id = data.get('process_id')
-            reason = data.get('reason', 'Stopped by user')
-            
-            if not process_id:
-                # Try to get process ID from active processes
-                websocket_id = str(id(websocket))
-                process_id = self.active_transcription_processes.get(websocket_id)
-            
-            if not process_id:
-                await websocket.send_text(json.dumps({
-                    "type": "transcription_error",
-                    "error": "No active transcription process found",
-                    "status": "error"
-                }))
-                return
-            
-            # Stop the process
-            success = await self.process_manager.stop_process(process_id, reason)
-            
-            if success:
-                # Clean up the process tracking
-                websocket_id = str(id(websocket))
-                if websocket_id in self.active_transcription_processes:
-                    del self.active_transcription_processes[websocket_id]
-                
-                await websocket.send_text(json.dumps({
-                    "type": "transcription_stopped",
-                    "process_id": process_id,
-                    "reason": reason,
-                    "status": "stopped"
-                }))
-            else:
-                await websocket.send_text(json.dumps({
-                    "type": "transcription_error",
-                    "error": f"Process {process_id} not found or already stopped",
-                    "status": "error"
-                }))
-                
-        except Exception as e:
-            print(f"❌ Error stopping transcription: {e}")
-            await websocket.send_text(json.dumps({
-                "type": "transcription_error",
-                "error": f"Failed to stop transcription: {str(e)}",
-                "status": "error"
-            }))
-
-    async def _handle_stop_all_transcriptions(self, websocket: WebSocket, data: dict):
-        """Handle stop all transcriptions request."""
-        try:
-            reason = data.get('reason', 'All processes stopped by user')
-            
-            # Stop all processes
-            stopped_count = await self.process_manager.stop_all_processes(reason)
-            
-            # Clear all active process tracking
-            self.active_transcription_processes.clear()
-            
-            await websocket.send_text(json.dumps({
-                "type": "all_transcriptions_stopped",
-                "stopped_count": stopped_count,
-                "reason": reason,
-                "status": "stopped"
-            }))
-            
-        except Exception as e:
-            print(f"❌ Error stopping all transcriptions: {e}")
-            await websocket.send_text(json.dumps({
-                "type": "transcription_error",
-                "error": f"Failed to stop all transcriptions: {str(e)}",
-                "status": "error"
-            }))
-
-    def _run_transcription_process(self, process_id: str, cancellation_token: AsyncCancellationToken, 
-                                 audio_data: list, language_code: str, websocket: WebSocket):
-        """Run transcription process in a separate thread with proper event loop management."""
-        try:
-            # Create a new event loop for this thread
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            # Run the async transcription process
-            loop.run_until_complete(
-                self._async_transcription_process(
-                    process_id, cancellation_token, audio_data, language_code, websocket
-                )
-            )
-            
-        except Exception as e:
-            print(f"❌ Error in transcription process thread: {e}")
-        finally:
-            # Clean up the event loop
-            try:
-                loop.close()
-            except:
-                pass
-            
-            # Clean up the process
-            self.process_manager.cleanup_process(process_id)
-
-    async def _async_transcription_process(self, process_id: str, cancellation_token: AsyncCancellationToken,
-                                         audio_data: list, language_code: str, websocket: WebSocket):
-        """Main async transcription processing logic."""
-        try:
-            # Convert audio data to numpy array
-            audio_array = np.array(audio_data, dtype=np.float32)
-            
-            # Create a cancellable speech adapter with the cancellation token
-            speech_adapter = self.container.create_cancellable_speech_adapter_with_token(cancellation_token)
-            
-            # Emit progress update
-            await self._emit_websocket_event(websocket, {
-                "type": "transcription_progress",
-                "process_id": process_id,
-                "status": "processing",
-                "message": "Starting transcription..."
-            })
-            
-            # Perform transcription with cancellation support
-            transcription = await speech_adapter.transcribe_audio(audio_array, language_code)
-            
-            # Check if cancelled during transcription
-            if cancellation_token.is_cancelled():
-                await self._emit_websocket_event(websocket, {
-                    "type": "transcription_cancelled",
-                    "process_id": process_id,
-                    "reason": cancellation_token.cancellation_reason,
-                    "status": "cancelled"
-                })
-                return
-            
-            # Emit successful completion
-            await self._emit_websocket_event(websocket, {
-                "type": "transcription_completed",
-                "process_id": process_id,
-                "transcription": transcription.text,
-                "confidence": transcription.confidence,
-                "language_code": transcription.language_code,
-                "status": "completed"
-            })
-            
-        except asyncio.CancelledError:
-            # Handle cancellation
-            await self._emit_websocket_event(websocket, {
-                "type": "transcription_cancelled",
-                "process_id": process_id,
-                "reason": cancellation_token.cancellation_reason or "Process cancelled",
-                "status": "cancelled"
-            })
-            
-        except Exception as e:
-            # Handle other errors
-            print(f"❌ Error in async transcription process: {e}")
-            await self._emit_websocket_event(websocket, {
-                "type": "transcription_error",
-                "process_id": process_id,
-                "error": str(e),
-                "status": "error"
-            })
-
-    async def _emit_websocket_event(self, websocket: WebSocket, event: dict):
-        """Safely emit WebSocket event with error handling."""
-        try:
-            await websocket.send_text(json.dumps(event))
-        except Exception as e:
-            print(f"❌ Failed to emit WebSocket event: {e}")
-            # Don't re-raise as this could break the process flow
