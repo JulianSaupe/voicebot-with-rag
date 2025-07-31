@@ -81,7 +81,7 @@ class GoogleTTSAdapter(TTSPort):
                                     yield audio_chunk.astype(np.int16).tolist(), text_to_synthesize
 
                                 # Remove the synthesized text from buffer
-                                sentence_buffer = sentence_buffer[len(text_to_synthesize):].lstrip()
+                                sentence_buffer = sentence_buffer[(len(text_to_synthesize) + 1):].lstrip()
 
                                 # If the current chunk was punctuation-only, we need to continue synthesis
                                 # with the punctuation chunk but without the punctuation to avoid duplication

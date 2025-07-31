@@ -80,7 +80,6 @@ class VoicebotController:
                                         previous_text = None
                                         response_id = int(time.time())
                                         async for audio_chunk, text in audio_stream:
-                                            # print(f"Text chunk: {text}")
                                             if audio_chunk:
                                                 chunk_count += 1
                                                 audio_message = {
@@ -273,7 +272,6 @@ class VoicebotController:
                                     }
 
                                     if text != previous_text:
-                                        print(f"Text chunk: {text}")
                                         audio_message["llm_response"] = text
 
                                     previous_text = text
