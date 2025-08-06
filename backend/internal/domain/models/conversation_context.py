@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -17,11 +17,16 @@ class ConversationContext:
         """Get a summary of the relevant context for the conversation."""
         if not self.has_relevant_context():
             return ""
+
+        summary = ""
+        for document in self.relevant_documents:
+            document = document.replace("\n", " ")
+            summary += f"\n - '{document}'"
         
-        return "\n".join(self.relevant_documents)
-    
-    def add_to_history(self, message: str) -> None:
-        """Add a message to the conversation history."""
+        return summary
+
+    def get_conversation_history(self) -> Tuple[str, int]:
+        """Get the conversation history."""
         if self.conversation_history is None:
-            self.conversation_history = []
-        self.conversation_history.append(message)
+            return "", 0
+        return "\n - ".join(self.conversation_history), len(self.conversation_history)
