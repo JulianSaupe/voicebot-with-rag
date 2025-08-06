@@ -6,13 +6,15 @@ import numpy as np
 
 from backend.internal.application.voicebot_service import VoicebotService
 from backend.internal.application.voice_activity_detector_service import VoiceActivityDetector
+from backend.internal.application.performance_profiler_service import PerformanceProfilerService
 
 
 class VoicebotController:
     """Web controller for voicebot endpoints using hexagonal architecture."""
 
-    def __init__(self, voicebot_service: VoicebotService):
+    def __init__(self, voicebot_service: VoicebotService, profiler: PerformanceProfilerService):
         self.voicebot_service = voicebot_service
+        self.profiler = profiler
 
     async def transcribe_audio_websocket(self, websocket: WebSocket):
         """
@@ -26,6 +28,7 @@ class VoicebotController:
 
         # Initialize VAD service for this connection with optimized parameters for faster response
         vad = VoiceActivityDetector(
+            profiler=self.profiler,
             silence_threshold_ms=200,  # Reduced from 500ms to 200ms for faster response
             min_speech_duration_ms=100,  # Increased slightly to avoid false positives
             sample_rate=48000
@@ -42,8 +45,14 @@ class VoicebotController:
                         # Convert array back to numpy array for PCM data
                         pcm_data = np.array(data['data'], dtype=np.float32)
 
-                        # Process through VAD using PCM data only
-                        should_transcribe, accumulated_audio = vad.process_audio_chunk(pcm_data)
+                        # Start profiling BEFORE any processing
+                        if not self.profiler.is_profiling_active():
+                            self.profiler.start_request_profiling()
+
+                        # Process through VAD using PCM data only with profiling
+                        with self.profiler.profile_sync("vad", "process_audio_chunk",
+                                                        {"pcm_length": len(pcm_data)}):
+                            should_transcribe, accumulated_audio = vad.process_audio_chunk(pcm_data)
 
                         if should_transcribe and accumulated_audio is not None and len(accumulated_audio) > 0:
                             try:
@@ -105,6 +114,11 @@ class VoicebotController:
                                         }
                                         await websocket.send_text(json.dumps(end_message))
                                         print(f"🔊 Audio streaming complete - sent {chunk_count} chunks")
+
+                                        # Print profiling summary after audio streaming completes
+                                        if self.profiler.is_profiling_active():
+                                            summary = self.profiler.stop_request_profiling()
+                                            print(summary.format_summary())
 
                                     except Exception as llm_error:
                                         print(f"❌ Error in LLM processing or audio generation: {llm_error}")
@@ -249,6 +263,9 @@ class VoicebotController:
 
                         print(f"🤖 Processing text input through LLM: {text_input}")
 
+                        # Start profiling for this text request
+                        self.profiler.start_request_profiling()
+
                         try:
                             # Generate streaming audio response using the voicebot service
                             audio_stream = self.voicebot_service.generate_streaming_voice_response(
@@ -286,6 +303,11 @@ class VoicebotController:
                             }
                             await websocket.send_text(json.dumps(end_message))
                             print(f"🔊 Audio streaming complete - sent {chunk_count} chunks")
+
+                            # Print profiling summary after audio streaming completes
+                            if self.profiler.is_profiling_active():
+                                summary = self.profiler.stop_request_profiling()
+                                print(summary.format_summary())
 
                         except Exception as llm_error:
                             print(f"❌ Error in LLM processing or audio generation: {llm_error}")

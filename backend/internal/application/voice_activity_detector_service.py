@@ -10,11 +10,14 @@ from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python.audio import AudioClassifierOptions, AudioClassifier
 from mediapipe.tasks.python.components.containers import AudioData
 
+from backend.internal.application.performance_profiler_service import PerformanceProfilerService
+
 
 class VoiceActivityDetector:
     """Voice Activity Detection service using MediaPipe streaming VAD."""
 
     def __init__(self,
+                 profiler: PerformanceProfilerService,
                  silence_threshold_ms: int = 200,
                  min_speech_duration_ms: int = 50,
                  sample_rate: int = 48000):
@@ -22,10 +25,12 @@ class VoiceActivityDetector:
         Initialize VAD service with MediaPipe streaming.
         
         Args:
+            profiler: Performance profiler service for tracking VAD operations
             silence_threshold_ms: Milliseconds of silence before processing audio
             min_speech_duration_ms: Minimum speech duration before considering it valid
             sample_rate: Audio sample rate (should match frontend)
         """
+        self.profiler = profiler
         self.silence_threshold_ms = silence_threshold_ms
         self.min_speech_duration_ms = min_speech_duration_ms
         self.sample_rate = sample_rate
@@ -98,20 +103,25 @@ class VoiceActivityDetector:
             raise RuntimeError("MediaPipe classifier not initialized")
 
         try:
-            # Create AudioData object for MediaPipe
-            audio_data = AudioData.create_from_array(
-                src=pcm_data.astype(np.float32),
-                sample_rate=self.sample_rate
-            )
+            # Create AudioData object for MediaPipe with profiling
+            with self.profiler.profile_sync("vad", "mediapipe_audio_data_creation", 
+                                          {"pcm_length": len(pcm_data), "sample_rate": self.sample_rate}):
+                audio_data = AudioData.create_from_array(
+                    src=pcm_data.astype(np.float32),
+                    sample_rate=self.sample_rate
+                )
 
-            timestamp_ms = int(round(self.total_samples_processed / self.sample_rate, 6) * (10 ** 3))
-            self.total_samples_processed += len(pcm_data)
+                timestamp_ms = int(round(self.total_samples_processed / self.sample_rate, 6) * (10 ** 3))
+                self.total_samples_processed += len(pcm_data)
 
-            # Send to MediaPipe for streaming classification
-            self.classifier.classify_async(audio_data, timestamp_ms)
+            # Send to MediaPipe for streaming classification with profiling
+            with self.profiler.profile_sync("vad", "mediapipe_classify_async", 
+                                          {"timestamp_ms": timestamp_ms}):
+                self.classifier.classify_async(audio_data, timestamp_ms)
 
-            # Check recent classification results
-            has_voice = self._check_recent_classifications()
+            # Check recent classification results with profiling
+            with self.profiler.profile_sync("vad", "check_recent_classifications"):
+                has_voice = self._check_recent_classifications()
 
             return has_voice
 

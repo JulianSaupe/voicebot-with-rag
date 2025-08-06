@@ -4,6 +4,7 @@ from backend.internal.adapters.driven.all_mpnet_base_v2 import AllMPNetBaseV2
 from backend.internal.adapters.driven.postgres_db import PostgresVectorDB
 from backend.internal.application.voicebot_service import VoicebotService
 from backend.internal.application.conversation_service import ConversationService
+from backend.internal.application.performance_profiler_service import PerformanceProfilerService
 from backend.internal.adapters.driven.gemini_llm_adapter import GeminiLLMAdapter
 from backend.internal.adapters.driven.google_speech_adapter import GoogleSpeechAdapter
 from backend.internal.adapters.driven.google_tts_adapter import GoogleTTSAdapter
@@ -16,6 +17,12 @@ class Container:
     
     def __init__(self):
         self._instances = {}
+    
+    def get_performance_profiler(self) -> PerformanceProfilerService:
+        """Get or create PerformanceProfilerService instance."""
+        if 'performance_profiler' not in self._instances:
+            self._instances['performance_profiler'] = PerformanceProfilerService()
+        return self._instances['performance_profiler']
     
     def get_conversation_service(self) -> ConversationService:
         """Get or create ConversationService instance."""
@@ -42,7 +49,10 @@ class Container:
             embedding_calculator = AllMPNetBaseV2()
             vector_db = PostgresVectorDB(embedding_calculator)
             
-            self._instances['rag_adapter'] = RAGAdapter(embedding_calculator, vector_db)
+            self._instances['rag_adapter'] = RAGAdapter(
+                embedding_calculator, 
+                vector_db
+            )
         return self._instances['rag_adapter']
     
     def get_tts_adapter(self) -> GoogleTTSAdapter:
@@ -59,7 +69,8 @@ class Container:
                 rag=self.get_rag_adapter(),
                 llm=self.get_llm_adapter(),
                 tts=self.get_tts_adapter(),
-                conversation_service=self.get_conversation_service()
+                conversation_service=self.get_conversation_service(),
+                profiler=self.get_performance_profiler()
             )
         return self._instances['voicebot_service']
     
@@ -67,7 +78,8 @@ class Container:
         """Get or create VoicebotController instance."""
         if 'voicebot_controller' not in self._instances:
             self._instances['voicebot_controller'] = VoicebotController(
-                voicebot_service=self.get_voicebot_service()
+                voicebot_service=self.get_voicebot_service(),
+                profiler=self.get_performance_profiler()
             )
         return self._instances['voicebot_controller']
 

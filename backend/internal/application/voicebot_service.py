@@ -8,6 +8,7 @@ from backend.internal.ports.output.tts_port import TTSPort
 from backend.internal.domain.models.audio_transcription import AudioTranscription
 from backend.internal.domain.models.voice_response import VoiceResponse
 from backend.internal.application.conversation_service import ConversationService
+from backend.internal.application.performance_profiler_service import PerformanceProfilerService
 
 
 class VoicebotService:
@@ -18,16 +19,20 @@ class VoicebotService:
                  rag: RAGPort,
                  llm: LLMPort,
                  tts: TTSPort,
-                 conversation_service: ConversationService):
+                 conversation_service: ConversationService,
+                 profiler: PerformanceProfilerService):
         self.speech_recognition = speech_recognition
         self.rag = rag
         self.llm = llm
         self.tts = tts
         self.conversation_service = conversation_service
+        self.profiler = profiler
 
     async def transcribe_audio(self, audio_data: np.ndarray, language_code: str = "de-DE") -> AudioTranscription:
         """Transcribe audio data to text using the speech recognition port."""
-        transcription = await self.speech_recognition.transcribe_audio(audio_data, language_code)
+        async with self.profiler.profile_async("audio_transcription", "transcribe_audio",
+                                               {"language_code": language_code, "audio_length": len(audio_data)}):
+            transcription = await self.speech_recognition.transcribe_audio(audio_data, language_code)
 
         if not self.conversation_service.validate_transcription(transcription):
             raise ValueError("Invalid transcription: empty or too short")
@@ -40,7 +45,9 @@ class VoicebotService:
         voice_settings = self.conversation_service.prepare_response_settings(voice)
 
         # Retrieve relevant context
-        relevant_documents = await self.rag.retrieve_relevant_documents(prompt)
+        async with self.profiler.profile_async("rag_retrieval", "retrieve_relevant_documents",
+                                               {"prompt_length": len(prompt)}):
+            relevant_documents = await self.rag.retrieve_relevant_documents(prompt)
 
         # Create conversation context using domain service
         context = self.conversation_service.create_conversation_context(
@@ -52,7 +59,9 @@ class VoicebotService:
         final_prompt = self._build_prompt_with_context(context)
 
         # Generate text response
-        text_response = await self.llm.generate_response(final_prompt)
+        async with self.profiler.profile_async("llm_response", "generate_response",
+                                               {"final_prompt_length": len(final_prompt)}):
+            text_response = await self.llm.generate_response(final_prompt)
 
         return VoiceResponse(
             text_content=text_response,
@@ -66,7 +75,9 @@ class VoicebotService:
         voice_settings = self.conversation_service.prepare_response_settings(voice)
 
         # Retrieve relevant context
-        relevant_documents = await self.rag.retrieve_relevant_documents(prompt)
+        async with self.profiler.profile_async("rag_retrieval", "retrieve_relevant_documents",
+                                               {"prompt_length": len(prompt)}):
+            relevant_documents = await self.rag.retrieve_relevant_documents(prompt)
 
         # Create conversation context using domain service
         context = self.conversation_service.create_conversation_context(
@@ -78,11 +89,15 @@ class VoicebotService:
         final_prompt = self._build_prompt_with_context(context)
 
         # Generate streaming text response
-        text_stream = self.llm.generate_response_stream(final_prompt)
+        async with self.profiler.profile_async("llm_response", "generate_response_stream",
+                                               {"final_prompt_length": len(final_prompt)}):
+            text_stream = self.llm.generate_response_stream(final_prompt)
 
-        # Convert text stream to audio stream
-        async for audio_chunk, text in self.tts.synthesize_speech_stream(text_stream, voice_settings):
-            yield audio_chunk, text
+            # Convert text stream to audio stream
+            async with self.profiler.profile_async("tts_generation", "synthesize_speech_stream",
+                                                   {"voice": voice_settings}):
+                async for audio_chunk, text in self.tts.synthesize_speech_stream(text_stream, voice_settings):
+                    yield audio_chunk, text
 
     def _build_prompt_with_context(self, context) -> str:
         """Build the final prompt including context if appropriate."""
