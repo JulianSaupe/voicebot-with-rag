@@ -91,6 +91,16 @@ export class AudioPlaybackService {
                 floatArray[i] = chunkData[i] / 32768.0; // Convert from Int16 to Float32
             }
 
+            // Calculate audio level (RMS) from output audio data
+            const audioLevel = this.calculateAudioLevel(floatArray);
+            
+            // Emit output audio level event for visualization
+            const audioLevelEvent = new CustomEvent('output-audio-level', {
+                detail: { level: audioLevel }
+            });
+            this.eventTarget.dispatchEvent(audioLevelEvent);
+            window.dispatchEvent(audioLevelEvent);
+
             // Create audio buffer for this chunk
             const audioBuffer = this.playbackAudioContext.createBuffer(
                 1, // mono
@@ -219,6 +229,19 @@ export class AudioPlaybackService {
 
     removeEventListener(type: string, listener: EventListener): void {
         this.eventTarget.removeEventListener(type, listener);
+    }
+
+    private calculateAudioLevel(floatArray: Float32Array): number {
+        // Calculate RMS (Root Mean Square) for audio level
+        let sum = 0;
+        for (let i = 0; i < floatArray.length; i++) {
+            sum += floatArray[i] * floatArray[i];
+        }
+        const rms = Math.sqrt(sum / floatArray.length);
+        
+        // Convert to a more usable range (0-100) and apply some scaling
+        const level = Math.min(100, rms * 1000);
+        return level;
     }
 
     disconnect(): void {

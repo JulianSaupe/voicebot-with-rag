@@ -4,25 +4,24 @@
     import {ServiceManager} from '$lib/script/ServiceManager';
     import ChatContainer from "$lib/components/ChatContainer.svelte";
 
+    // Use Svelte 5 runes for reactive state
     let serviceManager: ServiceManager;
-    let isConnected = false;
-    let isRecording = false;
-    let transcription: string = '';
-    let confidence: number = 0;
-    let error = '';
-    let status = 'Initializing...';
+    let isConnected = $state(false);
+    let isRecording = $state(false);
+    let transcription = $state('');
+    let confidence = $state(0);
+    let error = $state('');
+    let status = $state('Initializing...');
 
-    // Chat state
-    export let messages: Array<{
-        id: string;
-        text: string;
-        isUser: boolean;
-        timestamp: Date;
-    }> = [];
-    
-    // Audio visualization state (exported for parent binding)
-    export let audioLevel: number = 0;
-    export let isListening: boolean = false;
+    // Chat state - using Svelte 5 $props() instead of export let
+    let { messages = $bindable([]) }: {
+        messages?: Array<{
+            id: string;
+            text: string;
+            isUser: boolean;
+            timestamp: Date;
+        }>;
+    } = $props();
 
     // Event handler functions
     function handleTranscription(event: CustomEvent) {
@@ -92,7 +91,6 @@
             window.addEventListener('transcription', handleTranscription as EventListener);
             window.addEventListener('transcription-error', handleTranscriptionError as EventListener);
             window.addEventListener('llm-response', handleLLMResponse as EventListener);
-            window.addEventListener('audio-level', handleAudioLevel as EventListener);
 
             // Initialize service manager (connects WebSocket and initializes microphone)
             await serviceManager.initialize();
@@ -112,7 +110,6 @@
             window.removeEventListener('transcription', handleTranscription as EventListener);
             window.removeEventListener('transcription-error', handleTranscriptionError as EventListener);
             window.removeEventListener('llm-response', handleLLMResponse as EventListener);
-            window.removeEventListener('audio-level', handleAudioLevel as EventListener);
 
             if (serviceManager) {
                 serviceManager.disconnect();
@@ -127,25 +124,15 @@
         if (isRecording) {
             serviceManager.stopRecording();
             status = 'Recording stopped';
-            isListening = false;
-            audioLevel = 0;
         } else {
             serviceManager.startRecording();
             status = 'Recording... Speak now!';
             transcription = '';
             confidence = 0;
             error = '';
-            isListening = true;
         }
 
         isRecording = !isRecording;
-    }
-    
-    // Function to handle audio level updates
-    function handleAudioLevel(event: CustomEvent) {
-        if (isRecording) {
-            audioLevel = event.detail.level || 0;
-        }
     }
 </script>
 

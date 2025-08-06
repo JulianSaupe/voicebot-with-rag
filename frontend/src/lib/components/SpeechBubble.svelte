@@ -1,12 +1,57 @@
 <script lang="ts">
-    export let audioLevel: number = 0;
-    export let isListening: boolean = false;
+    import { onMount, onDestroy } from 'svelte';
+    import { browser } from '$app/environment';
 
-    // Calculate dynamic properties based on audio level
-    $: bubbleScale = 1 + (audioLevel / 150); // More dramatic scaling
-    $: glowIntensity = audioLevel / 100;
-    $: pulseSpeed = Math.max(0.5, 2 - (audioLevel / 100));
-    $: morphIntensity = audioLevel / 100; // For organic shape morphing
+    // Use Svelte 5 runes for reactive state
+    let audioLevel = $state(0);
+    let isListening = $state(false);
+    let smoothedAudioLevel = $state(0);
+
+    // Smoothing factor for better visual experience (0-1, higher = more smoothing)
+    const smoothingFactor = 0.7;
+
+    // Calculate dynamic properties based on audio level using $derived
+    const bubbleScale = $derived(1 + (smoothedAudioLevel / 120)); // More responsive scaling
+    const glowIntensity = $derived(smoothedAudioLevel / 80); // More sensitive glow
+    const pulseSpeed = $derived(Math.max(0.3, 1.8 - (smoothedAudioLevel / 120))); // Faster response
+    const morphIntensity = $derived(smoothedAudioLevel / 80); // More sensitive morphing
+
+    // Smooth audio level changes for better visual experience
+    $effect(() => {
+        if (audioLevel !== smoothedAudioLevel) {
+            const targetLevel = audioLevel;
+            const currentLevel = smoothedAudioLevel;
+            smoothedAudioLevel = currentLevel + (targetLevel - currentLevel) * (1 - smoothingFactor);
+        }
+    });
+
+    // Handle output audio level events directly in this component
+    function handleOutputAudioLevel(event: CustomEvent) {
+        audioLevel = event.detail.level || 0;
+        isListening = true;
+    }
+
+    // Handle audio playback completion
+    function handleAudioPlaybackComplete(event: CustomEvent) {
+        audioLevel = 0;
+        isListening = false;
+    }
+
+    // Setup event listeners when component mounts
+    onMount(() => {
+        if (!browser) return;
+        
+        window.addEventListener('output-audio-level', handleOutputAudioLevel as EventListener);
+        window.addEventListener('audio-playback-complete', handleAudioPlaybackComplete as EventListener);
+    });
+
+    // Cleanup event listeners when component unmounts
+    onDestroy(() => {
+        if (!browser) return;
+        
+        window.removeEventListener('output-audio-level', handleOutputAudioLevel as EventListener);
+        window.removeEventListener('audio-playback-complete', handleAudioPlaybackComplete as EventListener);
+    });
 </script>
 
 <div class="speech-bubble-container">

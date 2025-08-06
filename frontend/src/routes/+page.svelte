@@ -6,22 +6,18 @@
     import {ServiceManager} from '$lib/script/ServiceManager';
     import SpeechTranscriptionModule from "$lib/components/SpeechTranscriptionModule.svelte";
 
-    // UI state
-    let userPrompt = '';
-    let selectedVoice = 'de-DE-Chirp3-HD-Charon';
-    let isProcessing = false;
-    
-    // Audio visualization state
-    let audioLevel = 0;
-    let isListening = false;
+    // UI state - using Svelte 5 runes
+    let userPrompt = $state('');
+    let selectedVoice = $state('de-DE-Chirp3-HD-Charon');
+    let isProcessing = $state(false);
 
-    // Chat state
-    let messages: Array<{
+    // Chat state - using Svelte 5 runes
+    let messages = $state<Array<{
         id: string;
         text: string;
         isUser: boolean;
         timestamp: Date;
-    }> = [];
+    }>>([]);
 
     // Service manager for text input
     let textServiceManager: ServiceManager;
@@ -155,12 +151,12 @@
     <div class="app-layout">
         <!-- Central bubble area -->
         <div class="bubble-area">
-            <SpeechBubble {audioLevel} {isListening} />
+            <SpeechBubble />
         </div>
         
         <!-- Right side chat area -->
         <div class="chat-area">
-            <SpeechTranscriptionModule bind:messages={messages} bind:audioLevel={audioLevel} bind:isListening={isListening}/>
+            <SpeechTranscriptionModule bind:messages={messages} />
             
             <div class="controls">
                 <div class="prompt-container">

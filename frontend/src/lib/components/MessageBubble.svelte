@@ -1,7 +1,10 @@
 <script lang="ts">
-    export let text: string;
-    export let isUser: boolean;
-    export let timestamp: Date;
+    // Using Svelte 5 $props() instead of export let
+    let { text, isUser, timestamp }: {
+        text: string;
+        isUser: boolean;
+        timestamp: Date;
+    } = $props();
     
     // Format timestamp for display
     const formatTime = (date: Date) => {

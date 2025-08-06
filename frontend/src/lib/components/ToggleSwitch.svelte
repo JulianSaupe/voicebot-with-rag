@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	
-	export let enabled: boolean = false;
-	export let label: string = 'Toggle';
-	export let disabled: boolean = false;
+	// Using Svelte 5 $props() instead of export let
+	let { enabled = false, label = 'Toggle', disabled = false }: {
+		enabled?: boolean;
+		label?: string;
+		disabled?: boolean;
+	} = $props();
 	
 	const dispatch = createEventDispatcher();
 	

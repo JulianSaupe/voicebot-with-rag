@@ -1,12 +1,15 @@
 <script lang="ts">
     import MessageBubble from './MessageBubble.svelte';
     
-    export let messages: Array<{
-        id: string;
-        text: string;
-        isUser: boolean;
-        timestamp: Date;
-    }> = [];
+    // Using Svelte 5 $props() instead of export let
+    let { messages = [] }: {
+        messages?: Array<{
+            id: string;
+            text: string;
+            isUser: boolean;
+            timestamp: Date;
+        }>;
+    } = $props();
     
     let chatContainer: HTMLElement;
     
