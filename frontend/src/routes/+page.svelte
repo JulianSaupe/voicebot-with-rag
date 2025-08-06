@@ -2,6 +2,7 @@
     import {onMount, onDestroy} from 'svelte';
     import {browser} from '$app/environment';
     import ChatContainer from '$lib/components/ChatContainer.svelte';
+    import SpeechBubble from '$lib/components/SpeechBubble.svelte';
     import {ServiceManager} from '$lib/script/ServiceManager';
     import SpeechTranscriptionModule from "$lib/components/SpeechTranscriptionModule.svelte";
 
@@ -9,6 +10,10 @@
     let userPrompt = '';
     let selectedVoice = 'de-DE-Chirp3-HD-Charon';
     let isProcessing = false;
+    
+    // Audio visualization state
+    let audioLevel = 0;
+    let isListening = false;
 
     // Chat state
     let messages: Array<{
@@ -147,26 +152,34 @@
         <p class="subtitle">Voice Assistant</p>
     </div>
 
-    <div class="chatbot-container">
-        <SpeechTranscriptionModule bind:messages={messages}/>
-
-        <div class="controls">
-            <div class="prompt-container">
-                <input
-                        type="text"
-                        bind:value={userPrompt}
-                        placeholder="Ask a question or use microphone..."
-                        class="prompt-input"
-                        on:keydown={handleKeyDown}
-                        disabled={isProcessing}
-                />
-                <button
-                        class="submit-button"
-                        on:click={submitPrompt}
-                        disabled={!userPrompt.trim() || isProcessing}
-                >
-                    {isProcessing ? 'Processing...' : 'Ask'}
-                </button>
+    <div class="app-layout">
+        <!-- Central bubble area -->
+        <div class="bubble-area">
+            <SpeechBubble {audioLevel} {isListening} />
+        </div>
+        
+        <!-- Right side chat area -->
+        <div class="chat-area">
+            <SpeechTranscriptionModule bind:messages={messages} bind:audioLevel={audioLevel} bind:isListening={isListening}/>
+            
+            <div class="controls">
+                <div class="prompt-container">
+                    <input
+                            type="text"
+                            bind:value={userPrompt}
+                            placeholder="Ask a question or use microphone..."
+                            class="prompt-input"
+                            on:keydown={handleKeyDown}
+                            disabled={isProcessing}
+                    />
+                    <button
+                            class="submit-button"
+                            on:click={submitPrompt}
+                            disabled={!userPrompt.trim() || isProcessing}
+                    >
+                        {isProcessing ? 'Processing...' : 'Ask'}
+                    </button>
+                </div>
             </div>
         </div>
     </div>

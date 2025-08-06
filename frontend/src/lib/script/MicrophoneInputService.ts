@@ -221,6 +221,16 @@ export class MicrophoneInputService {
         }
 
         try {
+            // Calculate audio level (RMS) from PCM data
+            const audioLevel = this.calculateAudioLevel(pcmData);
+            
+            // Emit audio level event for visualization
+            const audioLevelEvent = new CustomEvent('audio-level', {
+                detail: { level: audioLevel }
+            });
+            this.eventTarget.dispatchEvent(audioLevelEvent);
+            window.dispatchEvent(audioLevelEvent);
+
             // Convert Float32Array to regular array for JSON transmission
             const pcmArray = Array.from(pcmData);
 
@@ -234,6 +244,19 @@ export class MicrophoneInputService {
         } catch (error) {
             console.error('❌ Error sending PCM data:', error);
         }
+    }
+
+    private calculateAudioLevel(pcmData: Float32Array): number {
+        // Calculate RMS (Root Mean Square) for audio level
+        let sum = 0;
+        for (let i = 0; i < pcmData.length; i++) {
+            sum += pcmData[i] * pcmData[i];
+        }
+        const rms = Math.sqrt(sum / pcmData.length);
+        
+        // Convert to a more usable range (0-100) and apply some scaling
+        const level = Math.min(100, rms * 1000);
+        return level;
     }
 
     addEventListener(type: string, listener: EventListener): void {

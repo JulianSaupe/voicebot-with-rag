@@ -19,6 +19,10 @@
         isUser: boolean;
         timestamp: Date;
     }> = [];
+    
+    // Audio visualization state (exported for parent binding)
+    export let audioLevel: number = 0;
+    export let isListening: boolean = false;
 
     // Event handler functions
     function handleTranscription(event: CustomEvent) {
@@ -88,6 +92,7 @@
             window.addEventListener('transcription', handleTranscription as EventListener);
             window.addEventListener('transcription-error', handleTranscriptionError as EventListener);
             window.addEventListener('llm-response', handleLLMResponse as EventListener);
+            window.addEventListener('audio-level', handleAudioLevel as EventListener);
 
             // Initialize service manager (connects WebSocket and initializes microphone)
             await serviceManager.initialize();
@@ -107,6 +112,7 @@
             window.removeEventListener('transcription', handleTranscription as EventListener);
             window.removeEventListener('transcription-error', handleTranscriptionError as EventListener);
             window.removeEventListener('llm-response', handleLLMResponse as EventListener);
+            window.removeEventListener('audio-level', handleAudioLevel as EventListener);
 
             if (serviceManager) {
                 serviceManager.disconnect();
@@ -121,15 +127,25 @@
         if (isRecording) {
             serviceManager.stopRecording();
             status = 'Recording stopped';
+            isListening = false;
+            audioLevel = 0;
         } else {
             serviceManager.startRecording();
             status = 'Recording... Speak now!';
             transcription = '';
             confidence = 0;
             error = '';
+            isListening = true;
         }
 
         isRecording = !isRecording;
+    }
+    
+    // Function to handle audio level updates
+    function handleAudioLevel(event: CustomEvent) {
+        if (isRecording) {
+            audioLevel = event.detail.level || 0;
+        }
     }
 </script>
 
@@ -168,7 +184,8 @@
 <style>
     .speech-streaming-container {
         max-width: 100%;
-        margin: 0 auto;
+        width: 100%;
+        margin: 0 0;
         padding: 1rem;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
@@ -214,6 +231,7 @@
         cursor: pointer;
         transition: all 0.2s ease;
         min-width: 200px;
+        width: 100%;
     }
 
     .record-button:hover:not(.disabled) {
