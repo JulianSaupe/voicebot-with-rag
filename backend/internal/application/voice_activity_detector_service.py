@@ -32,7 +32,7 @@ class VoiceActivityDetector:
 
         # Audio buffer for PCM data (used for both VAD and transcription)
         self.pcm_buffer: List[np.ndarray] = []
-        self.pre_speech_chunk_count = 10
+        self.pre_speech_chunk_count = 50
 
         # Timing and state
         self.last_voice_time: float = 0

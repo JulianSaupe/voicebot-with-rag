@@ -14,11 +14,18 @@
     let chatContainer: HTMLElement;
     
     // Auto-scroll to bottom when new messages are added
-    /*$: if (messages.length > 0 && chatContainer) {
-        setTimeout(() => {
+    function scrollToBottom() {
+        if (chatContainer) {
             chatContainer.scrollTop = chatContainer.scrollHeight;
-        }, 100);
-    }*/
+        }
+    }
+
+    $effect(() => {
+        if (messages.length > 0) {
+            scrollToBottom();
+        }
+    });
+
 </script>
 
 <div class="chat-container" bind:this={chatContainer}>

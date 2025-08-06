@@ -32,7 +32,7 @@ class ConversationService:
         return ConversationContext(
             user_query=transcription.get_clean_text(),
             relevant_documents=relevant_documents,
-            conversation_history=self.history[-3:]
+            conversation_history=self.history[-10:]
         )
 
     @staticmethod

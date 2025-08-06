@@ -127,9 +127,12 @@ class VoicebotController:
     async def _handle_transcription(self, websocket: WebSocket, audio_data: np.ndarray, start_time: float):
         """Handle transcription of audio data."""
         try:
+            start = time.time()
             transcription = await self.voicebot_service.transcribe_audio(
                 audio_data, language_code=self.DEFAULT_LANGUAGE_CODE
             )
+
+            print(f"🎤 Transcription time: {time.time() - start:.3f}s")
 
             if transcription.text and len(transcription.text.strip()) > self.MIN_TRANSCRIPTION_LENGTH:
                 transcription_result = self._create_transcription_message(transcription)

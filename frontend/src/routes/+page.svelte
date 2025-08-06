@@ -31,7 +31,6 @@
         'de-DE-Chirp3-HD-Fenrir'
     ];
 
-
     // Event handlers for LLM responses
     function handleLLMResponse(event: CustomEvent) {
         const {text, isComplete} = event.detail;
@@ -151,13 +150,13 @@
     <div class="app-layout">
         <!-- Central bubble area -->
         <div class="bubble-area">
-            <SpeechBubble />
+            <SpeechBubble/>
         </div>
-        
+
         <!-- Right side chat area -->
         <div class="chat-area">
-            <SpeechTranscriptionModule bind:messages={messages} />
-            
+            <SpeechTranscriptionModule bind:messages={messages}/>
+
             <div class="controls">
                 <div class="prompt-container">
                     <input
