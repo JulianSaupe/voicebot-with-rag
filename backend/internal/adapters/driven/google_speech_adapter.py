@@ -1,14 +1,11 @@
-from typing import AsyncGenerator
-import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from functools import partial
-import numpy as np
 
+import numpy as np
 from google.cloud import speech
 
-from backend.internal.ports.output.speech_recognition_port import SpeechRecognitionPort
 from backend.internal.domain.models.audio_transcription import AudioTranscription
+from backend.internal.ports.output.speech_recognition_port import SpeechRecognitionPort
 
 
 class GoogleSpeechAdapter(SpeechRecognitionPort):
@@ -28,34 +25,19 @@ class GoogleSpeechAdapter(SpeechRecognitionPort):
             audio_int16 = (audio_data * 32767).astype(np.int16)
             audio_bytes = audio_int16.tobytes()
 
-            # Configure the speech recognition for PCM audio - optimized for speed
             config = speech.RecognitionConfig(
                 encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
                 sample_rate_hertz=48000,
                 language_code=language_code,
                 enable_automatic_punctuation=True,
-                model="latest_short",  # Faster model for shorter audio segments
-                enable_word_time_offsets=False,  # Disable to reduce processing time
+                model="latest_short",
+                enable_word_time_offsets=False,
                 max_alternatives=1,
                 use_enhanced=True,
             )
 
-            # Create audio object
             audio = speech.RecognitionAudio(content=audio_bytes)
-
-            # Create a partial function with keyword arguments
-            recognize_func = partial(
-                self.client.recognize,
-                config=config,
-                audio=audio
-            )
-
-            # Run the synchronous Google Speech API call in a thread pool
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                self.executor,
-                recognize_func
-            )
+            response = self.client.recognize(config=config, audio=audio)
 
             # Process the response
             transcription_text = ""

@@ -6,20 +6,19 @@ import numpy as np
 
 from backend.internal.application.voicebot_service import VoicebotService
 from backend.internal.application.voice_activity_detector_service import VoiceActivityDetector
-from backend.internal.application.performance_profiler_service import PerformanceProfilerService
+from backend.internal.domain.models.audio_transcription import AudioTranscription
 
 
 class VoicebotController:
     """Web controller for voicebot endpoints using hexagonal architecture."""
 
-    def __init__(self, voicebot_service: VoicebotService, profiler: PerformanceProfilerService):
+    def __init__(self, voicebot_service: VoicebotService):
         self.voicebot_service = voicebot_service
-        self.profiler = profiler
 
     async def transcribe_audio_websocket(self, websocket: WebSocket):
         """
         Handle WebSocket connection for real-time audio transcription with VAD.
-        
+
         Args:
             websocket: WebSocket connection
         """
@@ -28,11 +27,32 @@ class VoicebotController:
 
         # Initialize VAD service for this connection with optimized parameters for faster response
         vad = VoiceActivityDetector(
-            profiler=self.profiler,
             silence_threshold_ms=200,  # Reduced from 500ms to 200ms for faster response
             min_speech_duration_ms=100,  # Increased slightly to avoid false positives
             sample_rate=48000
         )
+
+        # Pre-define message templates for performance optimization
+        def create_transcription_message(transcription: AudioTranscription):
+            return {
+                "type": "transcription",
+                "transcription": transcription.text,
+                "confidence": transcription.confidence,
+                "language_code": transcription.language_code,
+                "status": "success"
+            }
+
+        def create_audio_message(audio_chunk, chunk_number, response_id, llm_response=None):
+            msg = {
+                "type": "audio",
+                "data": list(audio_chunk),
+                "chunk_number": chunk_number,
+                "status": "streaming",
+                "id": response_id,
+            }
+            if llm_response:
+                msg["llm_response"] = llm_response
+            return msg
 
         try:
             while True:
@@ -45,14 +65,11 @@ class VoicebotController:
                         # Convert array back to numpy array for PCM data
                         pcm_data = np.array(data['data'], dtype=np.float32)
 
-                        # Start profiling BEFORE any processing
-                        if not self.profiler.is_profiling_active():
-                            self.profiler.start_request_profiling()
+                        # Start timing for performance measurement
+                        start_time = time.time()
 
-                        # Process through VAD using PCM data only with profiling
-                        with self.profiler.profile_sync("vad", "process_audio_chunk",
-                                                        {"pcm_length": len(pcm_data)}):
-                            should_transcribe, accumulated_audio = vad.process_audio_chunk(pcm_data)
+                        # Process through VAD using PCM data only (profiler removed for performance)
+                        should_transcribe, accumulated_audio = vad.process_audio_chunk(pcm_data)
 
                         if should_transcribe and accumulated_audio is not None and len(accumulated_audio) > 0:
                             try:
@@ -63,13 +80,7 @@ class VoicebotController:
 
                                 # Send transcription result back via WebSocket
                                 if transcription.text and len(transcription.text.strip()) > 1:
-                                    transcription_result = {
-                                        "type": "transcription",
-                                        "transcription": transcription.text,
-                                        "confidence": transcription.confidence,
-                                        "language_code": transcription.language_code,
-                                        "status": "success"
-                                    }
+                                    transcription_result = create_transcription_message(transcription)
 
                                     print(f"🎤 VAD-based transcription: {transcription.text}")
                                     await websocket.send_text(json.dumps(transcription_result))
@@ -91,19 +102,12 @@ class VoicebotController:
                                         async for audio_chunk, text in audio_stream:
                                             if audio_chunk:
                                                 chunk_count += 1
-                                                audio_message = {
-                                                    "type": "audio",
-                                                    "data": list(audio_chunk),
-                                                    "chunk_number": chunk_count,
-                                                    "status": "streaming",
-                                                    "id": response_id,
-                                                }
-
-                                                if text != previous_text:
-                                                    audio_message["llm_response"] = text
+                                                llm_response = text if text != previous_text else None
+                                                audio_message = create_audio_message(
+                                                    audio_chunk, chunk_count, response_id, llm_response
+                                                )
 
                                                 previous_text = text
-
                                                 await websocket.send_text(json.dumps(audio_message))
 
                                         # Send end of audio stream marker
@@ -115,10 +119,9 @@ class VoicebotController:
                                         await websocket.send_text(json.dumps(end_message))
                                         print(f"🔊 Audio streaming complete - sent {chunk_count} chunks")
 
-                                        # Print profiling summary after audio streaming completes
-                                        if self.profiler.is_profiling_active():
-                                            summary = self.profiler.stop_request_profiling()
-                                            print(summary.format_summary())
+                                        # Print timing summary after audio streaming completes
+                                        total_time = time.time() - start_time
+                                        print(f"⚡ Total processing time: {total_time:.3f}s")
 
                                     except Exception as llm_error:
                                         print(f"❌ Error in LLM processing or audio generation: {llm_error}")
@@ -263,8 +266,8 @@ class VoicebotController:
 
                         print(f"🤖 Processing text input through LLM: {text_input}")
 
-                        # Start profiling for this text request
-                        self.profiler.start_request_profiling()
+                        # Start timing for performance measurement
+                        start_time = time.time()
 
                         try:
                             # Generate streaming audio response using the voicebot service
@@ -304,10 +307,9 @@ class VoicebotController:
                             await websocket.send_text(json.dumps(end_message))
                             print(f"🔊 Audio streaming complete - sent {chunk_count} chunks")
 
-                            # Print profiling summary after audio streaming completes
-                            if self.profiler.is_profiling_active():
-                                summary = self.profiler.stop_request_profiling()
-                                print(summary.format_summary())
+                            # Print timing summary after audio streaming completes
+                            total_time = time.time() - start_time
+                            print(f"⚡ Total processing time: {total_time:.3f}s")
 
                         except Exception as llm_error:
                             print(f"❌ Error in LLM processing or audio generation: {llm_error}")

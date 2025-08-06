@@ -1,5 +1,7 @@
 from typing import AsyncGenerator, Any
 import numpy as np
+from functools import lru_cache
+import hashlib
 
 from backend.internal.ports.output.llm_port import LLMPort
 from backend.internal.ports.output.rag_port import RAGPort
@@ -8,31 +10,57 @@ from backend.internal.ports.output.tts_port import TTSPort
 from backend.internal.domain.models.audio_transcription import AudioTranscription
 from backend.internal.domain.models.voice_response import VoiceResponse
 from backend.internal.application.conversation_service import ConversationService
-from backend.internal.application.performance_profiler_service import PerformanceProfilerService
 
 
 class VoicebotService:
     """Application service orchestrating the complete voicebot conversation flow."""
+
+    # Simple in-memory cache for LLM responses
+    _llm_cache = {}
+    _cache_max_size = 32
 
     def __init__(self,
                  speech_recognition: SpeechRecognitionPort,
                  rag: RAGPort,
                  llm: LLMPort,
                  tts: TTSPort,
-                 conversation_service: ConversationService,
-                 profiler: PerformanceProfilerService):
+                 conversation_service: ConversationService):
         self.speech_recognition = speech_recognition
         self.rag = rag
         self.llm = llm
         self.tts = tts
         self.conversation_service = conversation_service
-        self.profiler = profiler
+
+    def _get_prompt_hash(self, prompt: str) -> str:
+        """Generate hash for prompt caching"""
+        return hashlib.md5(prompt.encode()).hexdigest()
+
+    async def _get_cached_llm_response(self, final_prompt: str) -> str:
+        """Get cached LLM response or generate new one"""
+        prompt_hash = self._get_prompt_hash(final_prompt)
+
+        # Check cache first
+        if prompt_hash in self._llm_cache:
+            print(f"🧊 Using cached LLM response for prompt hash: {prompt_hash[:8]}...")
+            return self._llm_cache[prompt_hash]
+
+        # Generate new response
+        text_response = await self.llm.generate_response(final_prompt)
+
+        # Cache the response (with simple size limit)
+        if len(self._llm_cache) >= self._cache_max_size:
+            # Remove oldest entry (simple FIFO)
+            oldest_key = next(iter(self._llm_cache))
+            del self._llm_cache[oldest_key]
+
+        self._llm_cache[prompt_hash] = text_response
+        print(f"🧊 Cached new LLM response for prompt hash: {prompt_hash[:8]}...")
+        return text_response
 
     async def transcribe_audio(self, audio_data: np.ndarray, language_code: str = "de-DE") -> AudioTranscription:
         """Transcribe audio data to text using the speech recognition port."""
-        async with self.profiler.profile_async("audio_transcription", "transcribe_audio",
-                                               {"language_code": language_code, "audio_length": len(audio_data)}):
-            transcription = await self.speech_recognition.transcribe_audio(audio_data, language_code)
+        # Profiler removed for performance - direct transcription
+        transcription = await self.speech_recognition.transcribe_audio(audio_data, language_code)
 
         if not self.conversation_service.validate_transcription(transcription):
             raise ValueError("Invalid transcription: empty or too short")
@@ -44,10 +72,8 @@ class VoicebotService:
         # Prepare voice settings using domain logic
         voice_settings = self.conversation_service.prepare_response_settings(voice)
 
-        # Retrieve relevant context
-        async with self.profiler.profile_async("rag_retrieval", "retrieve_relevant_documents",
-                                               {"prompt_length": len(prompt)}):
-            relevant_documents = await self.rag.retrieve_relevant_documents(prompt)
+        # Retrieve relevant context (profiler removed for performance)
+        relevant_documents = await self.rag.retrieve_relevant_documents(prompt)
 
         # Create conversation context using domain service
         context = self.conversation_service.create_conversation_context(
@@ -58,10 +84,8 @@ class VoicebotService:
         # Build prompt with context if appropriate
         final_prompt = self._build_prompt_with_context(context)
 
-        # Generate text response
-        async with self.profiler.profile_async("llm_response", "generate_response",
-                                               {"final_prompt_length": len(final_prompt)}):
-            text_response = await self.llm.generate_response(final_prompt)
+        # Generate text response with caching (profiler removed for performance)
+        text_response = await self._get_cached_llm_response(final_prompt)
 
         return VoiceResponse(
             text_content=text_response,
@@ -74,10 +98,8 @@ class VoicebotService:
         # Prepare voice settings using domain logic
         voice_settings = self.conversation_service.prepare_response_settings(voice)
 
-        # Retrieve relevant context
-        async with self.profiler.profile_async("rag_retrieval", "retrieve_relevant_documents",
-                                               {"prompt_length": len(prompt)}):
-            relevant_documents = await self.rag.retrieve_relevant_documents(prompt)
+        # Retrieve relevant context (profiler removed for performance)
+        relevant_documents = await self.rag.retrieve_relevant_documents(prompt)
 
         # Create conversation context using domain service
         context = self.conversation_service.create_conversation_context(
@@ -88,16 +110,12 @@ class VoicebotService:
         # Build prompt with context if appropriate
         final_prompt = self._build_prompt_with_context(context)
 
-        # Generate streaming text response
-        async with self.profiler.profile_async("llm_response", "generate_response_stream",
-                                               {"final_prompt_length": len(final_prompt)}):
-            text_stream = self.llm.generate_response_stream(final_prompt)
+        # Generate streaming text response (profiler removed for performance)
+        text_stream = self.llm.generate_response_stream(final_prompt)
 
-            # Convert text stream to audio stream
-            async with self.profiler.profile_async("tts_generation", "synthesize_speech_stream",
-                                                   {"voice": voice_settings}):
-                async for audio_chunk, text in self.tts.synthesize_speech_stream(text_stream, voice_settings):
-                    yield audio_chunk, text
+        # Convert text stream to audio stream (profiler removed for performance)
+        async for audio_chunk, text in self.tts.synthesize_speech_stream(text_stream, voice_settings):
+            yield audio_chunk, text
 
     def _build_prompt_with_context(self, context) -> str:
         """Build the final prompt including context if appropriate."""
