@@ -81,13 +81,14 @@ class VoicebotController:
             pass  # Connection might be closed
 
     async def _process_transcription_and_generate_audio(self, websocket: WebSocket, transcription: AudioTranscription,
-                                                        start_time: float):
+                                                        start_time: float, voice: str = None):
         """Process transcription through LLM and stream audio response."""
         try:
             print(f"🤖 Processing transcription through LLM: {transcription.text}")
 
+            selected_voice = voice if voice else self.DEFAULT_VOICE
             audio_stream = self.voicebot_service.generate_streaming_voice_response(
-                transcription.text, voice=self.DEFAULT_VOICE
+                transcription.text, voice=selected_voice
             )
 
             await self._stream_audio_response(websocket, audio_stream)
@@ -124,7 +125,7 @@ class VoicebotController:
         await self._send_json_message(websocket, end_message)
         print(f"🔊 Audio streaming complete - sent {chunk_count} chunks")
 
-    async def _handle_transcription(self, websocket: WebSocket, audio_data: np.ndarray, start_time: float):
+    async def _handle_transcription(self, websocket: WebSocket, audio_data: np.ndarray, start_time: float, voice: str = None):
         """Handle transcription of audio data."""
         try:
             start = time.time()
@@ -138,14 +139,14 @@ class VoicebotController:
                 transcription_result = self._create_transcription_message(transcription)
                 print(f"🎤 VAD-based transcription: {transcription.text}")
                 await self._send_json_message(websocket, transcription_result)
-                await self._process_transcription_and_generate_audio(websocket, transcription, start_time)
+                await self._process_transcription_and_generate_audio(websocket, transcription, start_time, voice)
 
         except Exception as e:
             print(f"❌ Transcription error: {e}")
             error_result = self._create_error_message("error", f"Transcription failed: {str(e)}")
             await self._send_json_message(websocket, error_result)
 
-    async def _process_final_audio(self, websocket: WebSocket, vad: VoiceActivityDetector):
+    async def _process_final_audio(self, websocket: WebSocket, vad: VoiceActivityDetector, voice: str = None):
         """Process any remaining buffered audio when connection closes."""
         final_audio = vad.force_process_buffer()
         if not final_audio:
@@ -163,8 +164,9 @@ class VoicebotController:
 
                 try:
                     print(f"🤖 Processing final transcription through LLM: {final_transcription.text}")
+                    selected_voice = voice if voice else self.DEFAULT_VOICE
                     audio_stream = self.voicebot_service.generate_streaming_voice_response(
-                        final_transcription.text, voice=self.DEFAULT_VOICE
+                        final_transcription.text, voice=selected_voice
                     )
                     await self._stream_audio_response(websocket, audio_stream)
 
@@ -184,6 +186,7 @@ class VoicebotController:
         print("🔌 WebSocket connection established for VAD-based audio transcription")
 
         vad = self._create_vad_detector()
+        selected_voice = self.DEFAULT_VOICE  # Store selected voice for this connection
 
         try:
             while True:
@@ -191,14 +194,19 @@ class VoicebotController:
                     message = await websocket.receive_text()
                     data = json.loads(message)
 
-                    if data['type'] == 'pcm':
+                    if data['type'] == 'voice_selection':
+                        # Handle voice selection message
+                        selected_voice = data.get('data', {}).get('voice', self.DEFAULT_VOICE)
+                        print(f"🎵 Voice selection received: {selected_voice}")
+                        
+                    elif data['type'] == 'pcm':
                         pcm_data = np.array(data['data'], dtype=np.float32)
                         start_time = time.time()
 
                         should_transcribe, accumulated_audio = vad.process_audio_chunk(pcm_data)
 
                         if should_transcribe and accumulated_audio is not None and len(accumulated_audio) > 0:
-                            await self._handle_transcription(websocket, accumulated_audio, start_time)
+                            await self._handle_transcription(websocket, accumulated_audio, start_time, selected_voice)
 
                 except WebSocketDisconnect:
                     print("🔌 WebSocket disconnected during audio streaming")
@@ -210,7 +218,7 @@ class VoicebotController:
                     print(f"❌ Error processing audio chunk: {e}")
                     continue
 
-            await self._process_final_audio(websocket, vad)
+            await self._process_final_audio(websocket, vad, selected_voice)
 
         except WebSocketDisconnect:
             print("🔌 WebSocket disconnected")

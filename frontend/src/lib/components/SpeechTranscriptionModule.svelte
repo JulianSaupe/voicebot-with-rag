@@ -14,13 +14,17 @@
     let status = $state('Initializing...');
 
     // Chat state - using Svelte 5 $props() instead of export let
-    let { messages = $bindable([]) }: {
+    let { 
+        messages = $bindable([]),
+        selectedVoice = 'de-DE-Chirp3-HD-Charon'
+    }: {
         messages?: Array<{
             id: string;
             text: string;
             isUser: boolean;
             timestamp: Date;
         }>;
+        selectedVoice?: string;
     } = $props();
 
     // Event handler functions
@@ -125,7 +129,7 @@
             serviceManager.stopRecording();
             status = 'Recording stopped';
         } else {
-            serviceManager.startRecording();
+            serviceManager.startRecording(selectedVoice);
             status = 'Recording... Speak now!';
             transcription = '';
             confidence = 0;

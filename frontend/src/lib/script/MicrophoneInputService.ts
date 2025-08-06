@@ -18,6 +18,7 @@ export class MicrophoneInputService {
     private sourceNode: MediaStreamAudioSourceNode | null = null;
     private isRecording: boolean = false;
     private isInitialized: boolean = false;
+    private selectedVoice: string = 'de-DE-Chirp3-HD-Charon';
 
     constructor(wsHandler: WebSocketHandler) {
         this.wsHandler = wsHandler;
@@ -171,11 +172,25 @@ export class MicrophoneInputService {
         }
     }
 
-    startRecording(): void {
+    startRecording(voice?: string): void {
         if (!this.isInitialized || !this.wsHandler.connected || this.isRecording || !this.audioWorkletNode) {
             console.warn('⚠️ Cannot start recording: not initialized, not connected, or already recording');
             return;
         }
+
+        // Store the selected voice if provided
+        if (voice) {
+            this.selectedVoice = voice;
+        }
+
+        // Send voice selection message to backend
+        const voiceMessage: WebSocketMessage = {
+            type: 'voice_selection',
+            data: { voice: this.selectedVoice },
+            id: this.generateId()
+        };
+        this.wsHandler.sendMessage(voiceMessage);
+        console.log('🎵 Voice selection sent to backend:', this.selectedVoice);
 
         // Handle PCM data from AudioWorklet
         this.audioWorkletNode.port.onmessage = (event) => {

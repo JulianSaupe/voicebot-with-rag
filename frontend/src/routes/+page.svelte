@@ -155,7 +155,7 @@
 
         <!-- Right side chat area -->
         <div class="chat-area">
-            <SpeechTranscriptionModule bind:messages={messages}/>
+            <SpeechTranscriptionModule bind:messages={messages} {selectedVoice}/>
 
             <div class="controls">
                 <div class="prompt-container">

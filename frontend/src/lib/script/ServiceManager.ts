@@ -58,8 +58,8 @@ export class ServiceManager {
     }
 
     // Microphone input methods
-    startRecording(): void {
-        this.microphoneInputService.startRecording();
+    startRecording(voice?: string): void {
+        this.microphoneInputService.startRecording(voice);
     }
 
     stopRecording(): void {
