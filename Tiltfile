@@ -34,6 +34,4 @@ Services:
 Commands:
 - tilt up: Start all services
 - tilt down: Stop all services
-- tilt trigger prisma-migrate: Run Prisma migrations
-- tilt trigger prisma-reset: Reset the database (caution: deletes all data)
 """)
