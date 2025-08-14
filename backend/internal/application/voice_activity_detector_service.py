@@ -139,7 +139,7 @@ class VoiceActivityDetector:
                     category_name = category.category_name.lower()
                     score = category.score
 
-                    # Look for speech-related categories (adjust based on your model)
+                    # Look for speech-related categories
                     if category_name in ['speech', 'voice', 'talking', 'human voice', 'conversation'] and score > 0.5:
                         self.logger.debug(f"Speech detected: {category_name} = {score:.3f}")
                         return True

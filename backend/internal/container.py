@@ -39,7 +39,6 @@ class Container:
     def get_rag_adapter(self) -> RAGAdapter:
         """Get or create RAGAdapter instance."""
         if 'rag_adapter' not in self._instances:
-            # Create embedding calculator and vector database
             embedding_calculator = AllMPNetBaseV2()
             vector_db = PostgresVectorDB(embedding_calculator)
             

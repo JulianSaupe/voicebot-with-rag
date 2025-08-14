@@ -13,40 +13,11 @@ class GoogleTTSAdapter(TTSPort):
         self.client = texttospeech.TextToSpeechClient()
         self.language_code = language_code
 
-    async def synthesize_speech(self, text: str, voice: str) -> bytes:
-        """Synthesize speech from text using Google Cloud TTS."""
-        try:
-            # Configure the synthesis request
-            synthesis_input = texttospeech.SynthesisInput(text=text)
-            voice_params = texttospeech.VoiceSelectionParams(
-                name=voice,
-                language_code=self.language_code
-            )
-            audio_config = texttospeech.AudioConfig(
-                audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-                sample_rate_hertz=24000
-            )
-
-            # Perform the text-to-speech request
-            response = self.client.synthesize_speech(
-                input=synthesis_input,
-                voice=voice_params,
-                audio_config=audio_config
-            )
-
-            return response.audio_content
-
-        except Exception as e:
-            print(f"❌ Error in Google TTS synthesis: {e}")
-            raise RuntimeError(f"TTS synthesis failed: {str(e)}")
-
     async def synthesize_speech_stream(self, text_stream: AsyncGenerator[str, None],
                                        voice: str) -> AsyncGenerator[tuple[Any, str] | tuple[Any, str], None]:
         """Synthesize speech from streaming text using Google Cloud TTS."""
         try:
             # Create streaming config with the specified voice
-            # Note: StreamingSynthesizeConfig doesn't support audio_config parameter
-            # Audio format is determined by the streaming synthesis service defaults
             streaming_config = texttospeech.StreamingSynthesizeConfig(
                 voice=texttospeech.VoiceSelectionParams(
                     name=voice,
@@ -77,7 +48,6 @@ class GoogleTTSAdapter(TTSPort):
                         if text_to_synthesize:
                             try:
                                 async for audio_chunk in self._synthesize_text(text_to_synthesize, streaming_config):
-                                    # Convert numpy array to list of integers for JSON serialization
                                     yield audio_chunk.astype(np.int16).tolist(), text_to_synthesize
 
                                 # Remove the synthesized text from buffer
@@ -86,8 +56,6 @@ class GoogleTTSAdapter(TTSPort):
                                 # If the current chunk was punctuation-only, we need to continue synthesis
                                 # with the punctuation chunk but without the punctuation to avoid duplication
                                 if is_punctuation_only and self._is_sentence_end_punctuation(text_chunk.strip()):
-                                    # Create a continuation synthesis with the punctuation removed
-                                    # This satisfies the requirement: "continue with the second chunk without the '.' etc."
                                     chunk_without_punctuation = self._remove_punctuation(text_chunk).strip()
                                     if chunk_without_punctuation:
                                         # If there's content after removing punctuation, synthesize it
@@ -99,8 +67,6 @@ class GoogleTTSAdapter(TTSPort):
                                         except Exception as e:
                                             print(f"❌ Error synthesizing punctuation continuation: {e}")
                                     else:
-                                        # If the chunk was only punctuation, create a minimal continuation
-                                        # to satisfy the requirement of continuing synthesis
                                         try:
                                             # Use a very short pause or silence to continue the stream
                                             async for audio_chunk in self._synthesize_text(" ", streaming_config):

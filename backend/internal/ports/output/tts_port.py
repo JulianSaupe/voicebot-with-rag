@@ -6,20 +6,6 @@ class TTSPort(ABC):
     """Port (interface) for Text-to-Speech services."""
     
     @abstractmethod
-    async def synthesize_speech(self, text: str, voice: str) -> bytes:
-        """
-        Synthesize speech from text.
-        
-        Args:
-            text: Text to convert to speech
-            voice: Voice settings/identifier
-            
-        Returns:
-            Audio data as bytes
-        """
-        pass
-    
-    @abstractmethod
     async def synthesize_speech_stream(self, text_stream: AsyncGenerator[str, None], 
                                      voice: str) -> AsyncGenerator[bytes, None]:
         """

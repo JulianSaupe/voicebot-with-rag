@@ -14,10 +14,6 @@ from backend.internal.ports.output.tts_port import TTSPort
 class VoicebotService:
     """Application service orchestrating the complete voicebot conversation flow."""
 
-    # Simple in-memory cache for LLM responses
-    _llm_cache = {}
-    _cache_max_size = 32
-
     def __init__(self,
                  speech_recognition: SpeechRecognitionPort,
                  rag: RAGPort,
@@ -42,24 +38,14 @@ class VoicebotService:
     async def generate_streaming_voice_response(self, prompt: str, voice: str = None) -> AsyncGenerator[
         tuple[Any, Any], None]:
         """Generate a streaming voice response from a text prompt."""
-        # Prepare voice settings using domain logic
         voice_settings = self.conversation_service.prepare_response_settings(voice)
-
-        # Retrieve relevant context
         relevant_documents = await self.rag.retrieve_relevant_documents(prompt)
-
-        # Create conversation context using domain service
         context = self.conversation_service.create_conversation_context(
             AudioTranscription(text=prompt),
             relevant_documents
         )
 
-        # Build prompt with context if appropriate
         final_prompt = self._build_prompt_with_context(context)
-
-        print(final_prompt)
-
-        # Generate streaming text response
         text_stream = self.llm.generate_response_stream(final_prompt)
 
         responses = set()
@@ -73,7 +59,8 @@ class VoicebotService:
 
         self.conversation_service.add_to_history(response_text)
 
-    def _build_prompt_with_context(self, context) -> str:
+    @staticmethod
+    def _build_prompt_with_context(context) -> str:
         """Build the final prompt including context if appropriate."""
         base_prompt = (
             "Du bist ein KI Agent, welcher ausführliche Antworten auf Fragen von Nutzern geben kann."
@@ -88,17 +75,14 @@ class VoicebotService:
             "Gebe nur ganze Sätze wieder, welche mit Hilfe von TTS an den Benutzer ausgegeben werden."
         )
 
-        if self.conversation_service.should_use_context(context):
-            last_answers, count = context.get_conversation_history()
+        last_answers, count = context.get_conversation_history()
 
-            if count == 0:
-                return (f"{base_prompt}\n\n"
-                        f"Kontext:\n{context.get_context_summary()}\n\n"
-                        f"Frage: {context.user_query}")
-
+        if count == 0:
             return (f"{base_prompt}\n\n"
                     f"Kontext:\n{context.get_context_summary()}\n\n"
-                    f"Letzten {count} Antworten:\n{last_answers}\n\n"
                     f"Frage: {context.user_query}")
-        else:
-            return f"{base_prompt}\n\nFrage: {context.user_query}"
+
+        return (f"{base_prompt}\n\n"
+                f"Kontext:\n{context.get_context_summary()}\n\n"
+                f"Letzten {count} Antworten:\n{last_answers}\n\n"
+                f"Frage: {context.user_query}")

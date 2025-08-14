@@ -16,7 +16,6 @@ class ConversationService:
         if transcription.is_empty():
             return False
 
-        # Business rule: minimum length for meaningful conversation
         if len(transcription.get_clean_text()) < 0:
             return False
 
@@ -36,26 +35,9 @@ class ConversationService:
         )
 
     @staticmethod
-    def should_use_context(context: ConversationContext) -> bool:
-        """Business logic to determine if context should be used in response generation."""
-        # Use context if we have relevant documents and the query is substantial
-        return (context.has_relevant_context() and
-                len(context.user_query) > 10)  # Business rule: longer queries benefit from context
-
-    def prepare_response_settings(self, voice_preference: str) -> str:
+    def prepare_response_settings(voice_preference: str) -> str:
         """Prepare voice settings based on user preference and business rules."""
-        # Business rule: default to German voice if not specified
         if not voice_preference:
             return "de-DE-Chirp3-HD-Charon"
 
-        # Business rule: validate voice setting format
-        if not self._is_valid_voice_setting(voice_preference):
-            return "de-DE-Chirp3-HD-Charon"
-
         return voice_preference
-
-    @staticmethod
-    def _is_valid_voice_setting(voice: str) -> bool:
-        """Validate voice setting format."""
-        # Simple validation - could be expanded with more business rules
-        return bool(voice and "-" in voice and len(voice) > 5)

@@ -13,7 +13,6 @@ class GoogleSpeechAdapter(SpeechRecognitionPort):
 
     def __init__(self):
         self.client = speech.SpeechClient()
-        self.executor = ThreadPoolExecutor(max_workers=4)
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
