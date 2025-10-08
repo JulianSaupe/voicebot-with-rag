@@ -174,43 +174,6 @@ Tilt automatically handles:
 - **Playwright**: End-to-end testing
 - **Vitest**: Unit testing framework
 
-## Testing
-
-### Backend Testing
-
-**Architecture Validation**:
-```bash
-python backend/test_ports_adapters_architecture.py
-```
-This comprehensive test validates:
-- Dependency injection container
-- Domain models and business logic
-- Ports and adapters structure
-- Clean architecture implementation
-
-### Frontend Testing
-
-**Unit Tests**:
-```bash
-cd frontend
-npm run test:unit
-```
-
-**End-to-End Tests**:
-```bash
-cd frontend
-npm run test:e2e
-```
-
-**Development Scripts**:
-```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run preview  # Preview production build
-npm run lint     # Run ESLint
-npm run format   # Format code with Prettier
-```
-
 ## WebSocket Communication Protocol
 
 The application uses WebSocket connections for real-time communication:
